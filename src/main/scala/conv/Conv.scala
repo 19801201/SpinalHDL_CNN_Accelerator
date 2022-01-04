@@ -5,7 +5,7 @@ import conv.dataGenerate._
 import spinal.core._
 import spinal.lib._
 import spinal.lib.fsm._
-import wa.WaCounter
+import wa._
 import xmemory._
 
 object ConvType {
@@ -44,6 +44,7 @@ case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHAN
     val QUAN_M_DATA_WIDTH = 32 * COMPUTE_CHANNEL_OUT_NUM
     val QUAN_M_DATA_DEPTH = QUAN_S_DATA_WIDTH * QUAN_S_DATA_DEPTH / QUAN_M_DATA_WIDTH
 
+    val FEATURE_MEM_DEPTH = 512 / COMPUTE_CHANNEL_IN_NUM //最大支持到图片为512通道
 
     val dataGenerateConfig = DataGenerateConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_IN_NUM, FEATURE_WIDTH, KERNEL_NUM, FEATURE_RAM_DEPTH, ZERO_NUM)
 
@@ -114,6 +115,13 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
         val colNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
         val channelIn = in UInt (convConfig.CHANNEL_WIDTH bits)
         val channelOut = in UInt (convConfig.CHANNEL_WIDTH bits)
+
+        val featureMemReadAddr = out UInt (log2Up(convConfig.FEATURE_MEM_DEPTH) bits)
+        val featureMemWriteAddr = out UInt (log2Up(convConfig.FEATURE_MEM_DEPTH) bits)
+       // val featureMemWriteValid = in Bool()
+        val featureMemWriteReady = out Bool()
+
+
         val sCount = out UInt (log2Up(convConfig.FEATURE_RAM_DEPTH) bits)
         val mCount = out UInt (log2Up(convConfig.FEATURE_RAM_DEPTH) bits)
     }
@@ -122,6 +130,21 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     val computeChannelOutTimes = RegNext(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM))
     io.sCount := RegNext(io.colNumIn * computeChannelInTimes)
     io.mCount := io.sCount
+
+    val convComputeCtrlFsm = ConvComputeCtrlFsm()
+
+    val channelInTimes = RegNext(io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM))
+    val channelOutTimes = RegNext(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM))
+    val channelInCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE, convConfig.CHANNEL_WIDTH, channelInTimes - 1)
+    val channelOutCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.valid, convConfig.CHANNEL_WIDTH, channelOutTimes - 1)
+    val columnCnt = WaCounter(channelInCnt.valid && channelOutCnt.valid, convConfig.FEATURE_WIDTH, io.colNumIn - 1)
+    when(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.IDLE) {
+        channelInCnt.clear
+        channelOutCnt.clear
+        columnCnt.clear
+    }
+
+
 
 
 }
@@ -158,6 +181,36 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     loadWeight.io.sData <> io.sParaData
 
     val computeCtrl = ConvComputeCtrl(convConfig)
+
+    val sReady = Vec(Bool(), convConfig.KERNEL_NUM)
+    val mReady = Vec(Bool(), convConfig.KERNEL_NUM)
+    val featureFifo = Array.tabulate(convConfig.KERNEL_NUM) { i =>
+        def gen: WaStreamFifo[UInt] = {
+            val fifo = WaStreamFifo(UInt(convConfig.FEATURE_S_DATA_WIDTH bits), convConfig.FEATURE_RAM_DEPTH, computeCtrl.io.mCount, computeCtrl.io.sCount, sReady(i), mReady(i))
+            if (convConfig.KERNEL_NUM == 9) {
+                fifo.io.push <> dataGenerate.io.mData(i)
+            } else {
+                fifo.io.push <> io.sFeatureData
+            }
+            //fifo.io.pop.valid <> computeCtrl.io.featureMemWriteValid
+            fifo.io.pop.ready <> computeCtrl.io.featureMemWriteReady
+            fifo
+        }
+
+        gen
+    }
+
+    val featureMemOutData = Vec(UInt(convConfig.FEATURE_M_DATA_WIDTH bits), convConfig.KERNEL_NUM)
+    val featureMem = Array.tabulate(convConfig.KERNEL_NUM) { i =>
+        def gen: Mem[UInt] = {
+            val mem = Mem((UInt(convConfig.FEATURE_M_DATA_WIDTH bits)), wordCount = convConfig.FEATURE_MEM_DEPTH)
+            mem.write(computeCtrl.io.featureMemWriteAddr, featureFifo(i).io.pop.payload, featureFifo(i).io.pop.fire)
+            featureMemOutData(i) := mem.readSync(computeCtrl.io.featureMemReadAddr)
+            mem
+        }
+
+        gen
+    }
 
 }
 

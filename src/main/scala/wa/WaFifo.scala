@@ -1,7 +1,8 @@
 package wa
 
 import spinal.core._
-import spinal.lib.StreamFifo
+import spinal.lib._
+import xmemory.{FifoSync, XPM_FIFO_SYNC_CONFIG}
 
 object WaStreamFifo {
     def apply[T <: Data](dataType: T, depth: Int) = new WaStreamFifo(dataType, depth)
@@ -41,4 +42,10 @@ class WaStreamFifo[T <: Data](dataType: HardType[T], depth: Int, flag: Boolean =
 
         }
     }
+}
+
+case class WaXpmSyncFifo(config: XPM_FIFO_SYNC_CONFIG) extends Component {
+    val fifo = FifoSync(config)
+    val dataIn = slave Stream(Bits(config.WRITE_DATA_WIDTH bits))
+    
 }
