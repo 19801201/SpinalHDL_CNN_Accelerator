@@ -44,8 +44,24 @@ class WaStreamFifo[T <: Data](dataType: HardType[T], depth: Int, flag: Boolean =
     }
 }
 
-case class WaXpmSyncFifo(config: XPM_FIFO_SYNC_CONFIG) extends Component {
+case class WaXpmSyncFifo(config: XPM_FIFO_SYNC_CONFIG, mCount: UInt, sCount: UInt, sReady: Bool, mReady: Bool) extends Component {
     val fifo = FifoSync(config)
-    val dataIn = slave Stream(Bits(config.WRITE_DATA_WIDTH bits))
-    
+    val dataIn = slave Stream (UInt(config.WRITE_DATA_WIDTH bits))
+
+    dataIn.ready <> (!(fifo.io.full || fifo.io.wr_rst_busy))
+    dataIn.fire <> fifo.io.wr_en
+    dataIn.payload <> fifo.io.din
+
+
+    when(fifo.io.wr_data_count < sCount) {
+        sReady.set()
+    } otherwise {
+        sReady.clear()
+    }
+    when(fifo.io.rd_data_count >= mCount) {
+        mReady.set()
+    } otherwise {
+        mReady.clear()
+    }
+
 }

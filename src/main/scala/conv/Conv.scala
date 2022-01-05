@@ -1,10 +1,8 @@
 package conv
 
-import conv.ConvComputeCtrlEnum.{IDLE, newElement}
 import conv.dataGenerate._
 import spinal.core._
 import spinal.lib._
-import spinal.lib.fsm._
 import wa._
 import xmemory._
 
@@ -117,9 +115,10 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
         val channelOut = in UInt (convConfig.CHANNEL_WIDTH bits)
 
         val featureMemReadAddr = out UInt (log2Up(convConfig.FEATURE_MEM_DEPTH) bits)
-        val featureMemWriteAddr = out UInt (log2Up(convConfig.FEATURE_MEM_DEPTH) bits)
-       // val featureMemWriteValid = in Bool()
-        val featureMemWriteReady = out Bool()
+        val featureMemWriteAddr = out(Reg(UInt(log2Up(convConfig.FEATURE_MEM_DEPTH) bits)) init (0))
+        val featureMemWriteReady = out(Reg(Bool()) init False)
+
+        val weightReadAddr = out UInt (log2Up(convConfig.WEIGHT_M_DATA_DEPTH) bits)
 
 
         val sCount = out UInt (log2Up(convConfig.FEATURE_RAM_DEPTH) bits)
@@ -144,7 +143,34 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
         columnCnt.clear
     }
 
+    //    def setClear
+    setClear(io.featureMemWriteReady, convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelOutCnt.count === 0)
+    when(channelOutCnt.count === 0 && channelInCnt.count === 0) {
+        io.featureMemWriteAddr := 0
+    } elsewhen io.featureMemWriteReady {
+        io.featureMemWriteAddr := io.featureMemWriteAddr + 1
+    } otherwise {
+        io.featureMemWriteAddr := 0
+    }
 
+    def increase(data: UInt, clear: Bool, delay: Int) = {
+        when(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE) {
+            when(clear) {
+                data := 0
+            } otherwise {
+                data := data + 1
+            }
+        } otherwise {
+            data := 0
+        }
+        Delay(data, delay)
+    }
+
+    val featureMemReadAddrTemp = Reg(UInt(log2Up(convConfig.FEATURE_MEM_DEPTH) bits)) init 0
+    io.featureMemReadAddr := increase(featureMemReadAddrTemp, channelInCnt.valid, 2)
+
+    val weightReadAddr = Reg(UInt(log2Up(convConfig.WEIGHT_M_DATA_DEPTH) bits))
+    io.weightReadAddr := increase(weightReadAddr, channelInCnt.valid && channelOutCnt.valid, 2)
 
 
 }
@@ -185,15 +211,16 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     val sReady = Vec(Bool(), convConfig.KERNEL_NUM)
     val mReady = Vec(Bool(), convConfig.KERNEL_NUM)
     val featureFifo = Array.tabulate(convConfig.KERNEL_NUM) { i =>
-        def gen: WaStreamFifo[UInt] = {
-            val fifo = WaStreamFifo(UInt(convConfig.FEATURE_S_DATA_WIDTH bits), convConfig.FEATURE_RAM_DEPTH, computeCtrl.io.mCount, computeCtrl.io.sCount, sReady(i), mReady(i))
+        def gen: WaXpmSyncFifo = {
+            val fifo = WaXpmSyncFifo(XPM_FIFO_SYNC_CONFIG(MEM_TYPE.block, 0, FIFO_READ_MODE.fwft, convConfig.FEATURE_RAM_DEPTH, convConfig.FEATURE_S_DATA_WIDTH, convConfig.FEATURE_M_DATA_WIDTH), computeCtrl.io.mCount, computeCtrl.io.sCount, sReady(i), mReady(i))
+            //val fifo = WaStreamFifo(UInt(convConfig.FEATURE_S_DATA_WIDTH bits), convConfig.FEATURE_RAM_DEPTH, computeCtrl.io.mCount, computeCtrl.io.sCount, sReady(i), mReady(i))
             if (convConfig.KERNEL_NUM == 9) {
-                fifo.io.push <> dataGenerate.io.mData(i)
+                fifo.dataIn <> dataGenerate.io.mData(i)
             } else {
-                fifo.io.push <> io.sFeatureData
+                fifo.dataIn <> io.sFeatureData
             }
             //fifo.io.pop.valid <> computeCtrl.io.featureMemWriteValid
-            fifo.io.pop.ready <> computeCtrl.io.featureMemWriteReady
+            fifo.fifo.io.rd_en <> computeCtrl.io.featureMemWriteReady
             fifo
         }
 
@@ -204,7 +231,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     val featureMem = Array.tabulate(convConfig.KERNEL_NUM) { i =>
         def gen: Mem[UInt] = {
             val mem = Mem((UInt(convConfig.FEATURE_M_DATA_WIDTH bits)), wordCount = convConfig.FEATURE_MEM_DEPTH)
-            mem.write(computeCtrl.io.featureMemWriteAddr, featureFifo(i).io.pop.payload, featureFifo(i).io.pop.fire)
+            mem.write(computeCtrl.io.featureMemWriteAddr, featureFifo(i).fifo.io.dout, featureFifo(i).fifo.io.rd_en)
             featureMemOutData(i) := mem.readSync(computeCtrl.io.featureMemReadAddr)
             mem
         }
