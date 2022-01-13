@@ -243,14 +243,14 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
 
         gen
     }
+    val mulFeatureWeightData = Vec(Vec(Vec(UInt(32 bits),convConfig.COMPUTE_CHANNEL_IN_NUM),convConfig.COMPUTE_CHANNEL_OUT_NUM / 2),convConfig.KERNEL_NUM)
     val mulFeatureWeight = Array.tabulate(convConfig.KERNEL_NUM, convConfig.COMPUTE_CHANNEL_OUT_NUM / 2, convConfig.COMPUTE_CHANNEL_IN_NUM)((i, j, k) => {
         def gen = {
-            val mul = new xMul(24, 8, 32, this.clockDomain)
+            val mul =  xMul(24, 8, 32)
             mul.io.A <> loadWeight.io.weightRead(i).data(((2*j+1)*convConfig.COMPUTE_CHANNEL_IN_NUM+k+1)*8-1 downto ((2*j+1)*convConfig.COMPUTE_CHANNEL_IN_NUM+k)*8) @@ U"8'd0" @@ loadWeight.io.weightRead(i).data(((2*j)*convConfig.COMPUTE_CHANNEL_IN_NUM+k+1)*8-1 downto ((2*j)*convConfig.COMPUTE_CHANNEL_IN_NUM+k)*8)
             mul.io.B <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
-            mul
+            mul.io.P <> mulFeatureWeightData(i)(j)(k)
         }
-
         gen
     })
 }
