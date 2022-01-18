@@ -91,19 +91,24 @@ class xAdd(
     mapClockDomain(clk, io.CLK)
 }
 
-class xAddKernel(
-                    A_WIDTH: Int,
-                    S_WIDTH: Int,
-                    KERNEL_NUM: Int
-                ) extends Component {
+object xAdd {
+    def apply(A_WIDTH: Int, S_WIDTH: Int, ADD_NUM: Int) = new xAddTimes(A_WIDTH, S_WIDTH, ADD_NUM)
+    def apply(A_WIDTH: Int, S_WIDTH: Int) = new xAddChannelTimes(A_WIDTH, S_WIDTH)
+}
+
+class xAddTimes(
+                   A_WIDTH: Int,
+                   S_WIDTH: Int,
+                   ADD_NUM: Int
+               ) extends Component {
     val io = new Bundle {
-        val A = in Vec(SInt(A_WIDTH bits), KERNEL_NUM)
+        val A = in Vec(SInt(A_WIDTH bits), ADD_NUM)
         val S = out SInt (S_WIDTH bits)
     }
     noIoPrefix()
-    val a1Temp = Vec(SInt(A_WIDTH / 2 bits), KERNEL_NUM)
-    val a2Temp = Vec(SInt(A_WIDTH / 2 bits), KERNEL_NUM)
-    (0 until KERNEL_NUM).foreach(i => {
+    val a1Temp = Vec(SInt(A_WIDTH / 2 bits), ADD_NUM)
+    val a2Temp = Vec(SInt(A_WIDTH / 2 bits), ADD_NUM)
+    (0 until ADD_NUM).foreach(i => {
         a1Temp(i) := io.A(i)((A_WIDTH / 2 - 1) downto 0)
         a2Temp(i) := io.A(i)(A_WIDTH - 1 downto A_WIDTH / 2)
     })
@@ -111,8 +116,42 @@ class xAddKernel(
 }
 
 
+class xAddChannelTimes(
+                          A_WIDTH: Int,
+                          S_WIDTH: Int
+                      ) extends Component {
+    val io = new Bundle {
+        val A = in SInt (A_WIDTH bits)
+        val S = out(Reg(SInt(S_WIDTH bits))) init 0
+        val init = in Bool()
+    }
+    noIoPrefix()
+    when(io.init) {
+        io.S := io.A.resized
+    } otherwise {
+        io.S := (io.A + io.S).resized
+    }
+}
+
+
+//class xAddChannelIn(
+//                       A_WIDTH: Int,
+//                       S_WIDTH: Int,
+//                       CHANNEL_IN_NUM: Int
+//                   ) extends Component {
+//    val io = new Bundle {
+//        val A = in Vec(SInt(A_WIDTH bits), CHANNEL_IN_NUM)
+//        val S = out SInt (S_WIDTH bits)
+//    }
+//    noIoPrefix()
+//    io.S := io.A.reduceBalancedTree(_ +^ _, (s, l) => RegNext(s))
+//}
+
+
 object ttt extends App {
-//    val clk = ClockDomainConfig(resetKind = BOOT)
-//    SpinalConfig(defaultConfigForClockDomains = clk).generateVerilog(xMul(24, 8, 32))
-    SpinalVerilog(new xAddKernel(32, 40, 9))
+    //    val clk = ClockDomainConfig(resetKind = BOOT)
+    //    SpinalConfig(defaultConfigForClockDomains = clk).generateVerilog(xMul(24, 8, 32))
+    val i = 32
+//    SpinalVerilog(xAdd(40, 40 + 2 * (if (i == 1) 0 else log2Up(i)), i))
+    SpinalVerilog(xAdd(20,32))
 }

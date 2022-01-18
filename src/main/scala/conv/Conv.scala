@@ -44,6 +44,15 @@ case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHAN
 
     val FEATURE_MEM_DEPTH = 512 / COMPUTE_CHANNEL_IN_NUM //最大支持到图片为512通道
 
+    val mulWeightWidth = 32
+    val addKernelWidth = CONV_TYPE match {
+        case ConvType.conv33 => 40
+        case ConvType.conv11 => 32
+        case _ => -1
+    }
+    val addChannelInWidth = addKernelWidth + 2 * (if (COMPUTE_CHANNEL_IN_NUM == 1) 0 else log2Up(COMPUTE_CHANNEL_IN_NUM))
+    val addChannelTimesWidth = 32
+
     val dataGenerateConfig = DataGenerateConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_IN_NUM, FEATURE_WIDTH, KERNEL_NUM, FEATURE_RAM_DEPTH, ZERO_NUM)
 
 }
@@ -243,16 +252,57 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
 
         gen
     }
-    val mulFeatureWeightData = Vec(Vec(Vec(UInt(32 bits),convConfig.COMPUTE_CHANNEL_IN_NUM),convConfig.COMPUTE_CHANNEL_OUT_NUM / 2),convConfig.KERNEL_NUM)
+    val mulFeatureWeightData = Vec(Vec(Vec(UInt(convConfig.mulWeightWidth bits), convConfig.COMPUTE_CHANNEL_IN_NUM), convConfig.COMPUTE_CHANNEL_OUT_NUM / 2), convConfig.KERNEL_NUM)
     val mulFeatureWeight = Array.tabulate(convConfig.KERNEL_NUM, convConfig.COMPUTE_CHANNEL_OUT_NUM / 2, convConfig.COMPUTE_CHANNEL_IN_NUM)((i, j, k) => {
         def gen = {
-            val mul =  xMul(24, 8, 32)
-            mul.io.A <> loadWeight.io.weightRead(i).data(((2*j+1)*convConfig.COMPUTE_CHANNEL_IN_NUM+k+1)*8-1 downto ((2*j+1)*convConfig.COMPUTE_CHANNEL_IN_NUM+k)*8) @@ U"8'd0" @@ loadWeight.io.weightRead(i).data(((2*j)*convConfig.COMPUTE_CHANNEL_IN_NUM+k+1)*8-1 downto ((2*j)*convConfig.COMPUTE_CHANNEL_IN_NUM+k)*8)
+            val mul = xMul(24, 8, convConfig.mulWeightWidth)
+            mul.io.A <> loadWeight.io.weightRead(i).data(((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8) @@ U"8'd0" @@ loadWeight.io.weightRead(i).data(((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
             mul.io.B <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
             mul.io.P <> mulFeatureWeightData(i)(j)(k)
         }
+
         gen
     })
+    val addKernelData = Vec(Vec(SInt(convConfig.addKernelWidth bits), convConfig.COMPUTE_CHANNEL_IN_NUM), convConfig.COMPUTE_CHANNEL_OUT_NUM / 2)
+    val addKernel = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM / 2, convConfig.COMPUTE_CHANNEL_IN_NUM) { (i, j) =>
+        def gen = {
+            val add = xAdd(convConfig.mulWeightWidth, convConfig.addKernelWidth, convConfig.KERNEL_NUM)
+            (0 until convConfig.KERNEL_NUM).foreach(k => {
+                add.io.A(k) <> mulFeatureWeightData(i)(j)(k).asSInt
+            }
+            )
+            add.io.S <> addKernelData(i)(j)
+
+        }
+
+        gen
+    }
+
+
+    val addChannelData = Vec(SInt(convConfig.addChannelInWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM / 2)
+    val addChannelIn = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM / 2) { i =>
+        def gen = {
+            val add = xAdd(convConfig.addKernelWidth, convConfig.addChannelInWidth, convConfig.COMPUTE_CHANNEL_IN_NUM)
+            (0 until convConfig.COMPUTE_CHANNEL_IN_NUM).foreach(j => {
+                add.io.A(j) <> addKernelData(i)(j)
+            })
+            add.io.S <> addChannelData(i)
+        }
+
+        gen
+    }
+
+    val addChannelTimesData = Vec(SInt(convConfig.addChannelTimesWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
+    val addChannelTimes = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM) { i =>
+        def gen = {
+            val add = xAdd(convConfig.addChannelInWidth / 2, convConfig.addChannelTimesWidth)
+            add.io.A <> addChannelData(i/2).subdivideIn(2 slices)(i%2)
+            add.io.S <> addChannelTimesData(i)
+        }
+
+        gen
+    }
+
 }
 
 
