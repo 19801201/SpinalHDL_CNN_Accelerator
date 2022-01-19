@@ -112,11 +112,11 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
 
     val io = new Bundle {
         val start = in Bool()
-        val mDataValid = out Bool()
-        val mDataReady = in Bool()
-        val normValid = out Bool()
-        val normPreValid = out Bool()
-        val sDataValid = in Bool()
+        val mDataValid = out Bool() //
+        val mDataReady = in Bool() //mData
+        val normValid = out Bool() //卷积
+        val normPreValid = out Bool() //通道累计
+        //val sDataValid = in Bool()  //sData
         val sDataReady = in Bool()
         val rowNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
         val colNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
@@ -140,6 +140,9 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     io.mCount := io.sCount
 
     val convComputeCtrlFsm = ConvComputeCtrlFsm()
+    convComputeCtrlFsm.start <> io.start
+    convComputeCtrlFsm.dataReady <> io.sDataReady
+    convComputeCtrlFsm.fifoReady <> io.mDataReady
 
     val channelInTimes = RegNext(io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM))
     val channelOutTimes = RegNext(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM))
@@ -213,6 +216,12 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     dataGenerate.io.zeroNum <> io.zeroNum
 
     val computeCtrl = ConvComputeCtrl(convConfig)
+    computeCtrl.io.start <> io.startCu
+    computeCtrl.io.colNumIn <> io.colNumIn
+    computeCtrl.io.rowNumIn <> io.rowNumIn
+    computeCtrl.io.channelIn <> io.channelIn
+    computeCtrl.io.channelOut <> io.channelOut
+
 
     val loadWeight = LoadWeight(convConfig)
     loadWeight.io.sData <> io.sParaData
@@ -224,6 +233,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
 
     val sReady = Vec(Bool(), convConfig.KERNEL_NUM)
     val mReady = Vec(Bool(), convConfig.KERNEL_NUM)
+    computeCtrl.io.sDataReady <> mReady(0)
     val featureFifo = Array.tabulate(convConfig.KERNEL_NUM) { i =>
         def gen: WaXpmSyncFifo = {
             val fifo = WaXpmSyncFifo(XPM_FIFO_SYNC_CONFIG(MEM_TYPE.block, 0, FIFO_READ_MODE.fwft, convConfig.FEATURE_RAM_DEPTH, convConfig.FEATURE_S_DATA_WIDTH, convConfig.FEATURE_M_DATA_WIDTH), computeCtrl.io.mCount, computeCtrl.io.sCount, sReady(i), mReady(i))
@@ -272,7 +282,6 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
             }
             )
             add.io.S <> addKernelData(i)(j)
-
         }
 
         gen
@@ -296,8 +305,9 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     val addChannelTimes = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM) { i =>
         def gen = {
             val add = xAdd(convConfig.addChannelInWidth / 2, convConfig.addChannelTimesWidth)
-            add.io.A <> addChannelData(i/2).subdivideIn(2 slices)(i%2)
+            add.io.A <> addChannelData(i / 2).subdivideIn(2 slices)(i % 2)
             add.io.S <> addChannelTimesData(i)
+            add.io.init <> computeCtrl.io.normPreValid
         }
 
         gen
