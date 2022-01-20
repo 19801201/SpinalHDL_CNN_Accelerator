@@ -66,7 +66,8 @@ case class ConvComputeCtrlFsm() extends Area {
     val dataReady = Bool()
     val fifoReady = Bool()
     val initEnd = Bool()
-
+    val computeEnd = Bool()
+    val endEnd = Bool()
 
     val currentState = Reg(ConvComputeCtrlEnum()) init ConvComputeCtrlEnum.IDLE
     val nextState = ConvComputeCtrlEnum()
@@ -101,7 +102,18 @@ case class ConvComputeCtrlFsm() extends Area {
             }
         }
         is(ConvComputeCtrlEnum.COMPUTE) {
-
+            when(computeEnd) {
+                nextState := ConvComputeCtrlEnum.END
+            } otherwise {
+                nextState := ConvComputeCtrlEnum.COMPUTE
+            }
+        }
+        is(ConvComputeCtrlEnum.END) {
+            when(endEnd) {
+                nextState := ConvComputeCtrlEnum.IDLE
+            } otherwise {
+                nextState := ConvComputeCtrlEnum.DATA_READY
+            }
         }
     }
 
@@ -112,10 +124,11 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
 
     val io = new Bundle {
         val start = in Bool()
-        val mDataValid = out Bool() //
+        //  val mDataValid = out Bool() //
         val mDataReady = in Bool() //mData
         val normValid = out Bool() //卷积
         val normPreValid = out Bool() //通道累计
+        val normEnd = out Bool()
         //val sDataValid = in Bool()  //sData
         val sDataReady = in Bool()
         val rowNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
@@ -136,7 +149,7 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     noIoPrefix()
     val computeChannelInTimes = RegNext(io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM))
     val computeChannelOutTimes = RegNext(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM))
-    io.sCount := RegNext(io.colNumIn * computeChannelInTimes)
+    io.sCount := RegNext(io.colNumIn * computeChannelInTimes).resized
     io.mCount := io.sCount
 
     val convComputeCtrlFsm = ConvComputeCtrlFsm()
@@ -144,18 +157,23 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     convComputeCtrlFsm.dataReady <> io.sDataReady
     convComputeCtrlFsm.fifoReady <> io.mDataReady
 
+    val initCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.INIT, 3, 7)
     val channelInTimes = RegNext(io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM))
     val channelOutTimes = RegNext(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM))
     val channelInCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE, convConfig.CHANNEL_WIDTH, channelInTimes - 1)
     val channelOutCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.valid, convConfig.CHANNEL_WIDTH, channelOutTimes - 1)
     val columnCnt = WaCounter(channelInCnt.valid && channelOutCnt.valid, convConfig.FEATURE_WIDTH, io.colNumIn - 1)
+    val rowCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.END, convConfig.FEATURE_WIDTH, io.rowNumIn - 1)
     when(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.IDLE) {
         channelInCnt.clear
         channelOutCnt.clear
         columnCnt.clear
     }
+    setClear(convComputeCtrlFsm.computeEnd, channelInCnt.valid && channelOutCnt.valid && columnCnt.valid)
+    setClear(convComputeCtrlFsm.endEnd, rowCnt.valid)
+    setClear(io.normEnd, convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.END && convComputeCtrlFsm.nextState === ConvComputeCtrlEnum.IDLE)
+    setClear(convComputeCtrlFsm.initEnd, initCnt.valid)
 
-    //    def setClear
     setClear(io.featureMemWriteReady, convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelOutCnt.count === 0)
     when(channelOutCnt.count === 0 && channelInCnt.count === 0) {
         io.featureMemWriteAddr := 0
@@ -182,10 +200,20 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     io.featureMemReadAddr := increase(featureMemReadAddrTemp, channelInCnt.valid, 2)
 
     val weightReadAddr = Reg(UInt(log2Up(convConfig.WEIGHT_M_DATA_DEPTH) bits))
-    io.weightReadAddr.map(_ := increase(weightReadAddr, channelInCnt.valid && channelOutCnt.valid, 2))
+    val weightReadAddrTemp = increase(weightReadAddr, channelInCnt.valid && channelOutCnt.valid, 2)
+    io.weightReadAddr.map(_ := weightReadAddrTemp)
 
+    val channelTimesAdd = Reg(Bool()) init False
+    setClear(channelTimesAdd, convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.count === 0)
+    io.normPreValid := Delay(channelTimesAdd, 25)
+    io.normValid := RegNext(io.normPreValid)
 
 }
+
+//
+//object ConvComputeCtrl extends App {
+//    SpinalVerilog(ConvComputeCtrl(ConvConfig(8, 16, 8, 12, 2048, 512, 640, 2048, 1, ConvType.conv33)))
+//}
 
 class ConvCompute(convConfig: ConvConfig) extends Component {
 
@@ -194,7 +222,9 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val startCu = in Bool()
         val sParaData = slave Stream UInt(convConfig.WEIGHT_S_DATA_WIDTH bits)
         val sFeatureData = slave Stream UInt(convConfig.FEATURE_S_DATA_WIDTH bits)
-        val mFeatureData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits)
+//        val mFeatureData = master Stream SInt(convConfig.FEATURE_M_DATA_WIDTH bits)
+        val mNormData = master (Stream (Vec(SInt(convConfig.addChannelTimesWidth bits),convConfig.COMPUTE_CHANNEL_OUT_NUM))) //调试使用
+        val copyWeightDone = out Bool()
 
         val rowNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
         val colNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
@@ -214,6 +244,8 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     dataGenerate.io.channelIn <> io.channelIn
     dataGenerate.io.zeroDara <> io.zeroDara
     dataGenerate.io.zeroNum <> io.zeroNum
+    dataGenerate.io.enPadding <> io.enPadding
+
 
     val computeCtrl = ConvComputeCtrl(convConfig)
     computeCtrl.io.start <> io.startCu
@@ -229,6 +261,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     (0 until convConfig.KERNEL_NUM).foreach { i =>
         loadWeight.io.weightRead(i).addr <> computeCtrl.io.weightReadAddr(i)
     }
+    loadWeight.io.copyWeightDone <> io.copyWeightDone
 
 
     val sReady = Vec(Bool(), convConfig.KERNEL_NUM)
@@ -400,6 +433,7 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
         val biasRead = WeightReadPort(UInt(convConfig.QUAN_M_DATA_WIDTH bits), convConfig.QUAN_M_DATA_DEPTH)
         val scaleRead = WeightReadPort(UInt(convConfig.QUAN_M_DATA_WIDTH bits), convConfig.QUAN_M_DATA_DEPTH)
         val shiftRead = WeightReadPort(UInt(convConfig.QUAN_M_DATA_WIDTH bits), convConfig.QUAN_M_DATA_DEPTH)
+        val copyWeightDone = out Bool()
 
     }
     noIoPrefix()
@@ -474,7 +508,7 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
     fsm.copyScaleEnd := copyScale.copyCnt.valid
     val copyShift = copyQuan(fsm.currentState === LoadWeightEnum.COPY_SHIFT && io.sData.fire, fsm.currentState === LoadWeightEnum.COPY_SHIFT && io.sData.fire, io.sData.payload, io.shiftRead.addr, io.shiftRead.data, this.clockDomain)
     fsm.copyShiftEnd := copyShift.copyCnt.valid
-
+    setClear(io.copyWeightDone, fsm.currentState === LoadWeightEnum.COPY_SHIFT && fsm.nextState === LoadWeightEnum.IDLE)
 
 }
 
