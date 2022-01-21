@@ -53,7 +53,7 @@ case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHAN
     val addChannelInWidth = addKernelWidth + 2 * (if (COMPUTE_CHANNEL_IN_NUM == 1) 0 else log2Up(COMPUTE_CHANNEL_IN_NUM))
     val addChannelTimesWidth = 32
 
-    val dataGenerateConfig = DataGenerateConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_IN_NUM, FEATURE_WIDTH, KERNEL_NUM, FEATURE_RAM_DEPTH, ZERO_NUM)
+    val dataGenerateConfig = DataGenerateConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_IN_NUM, FEATURE_WIDTH, KERNEL_NUM, log2Up(FEATURE_RAM_DEPTH), ZERO_NUM)
 
 }
 
@@ -222,8 +222,8 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val startCu = in Bool()
         val sParaData = slave Stream UInt(convConfig.WEIGHT_S_DATA_WIDTH bits)
         val sFeatureData = slave Stream UInt(convConfig.FEATURE_S_DATA_WIDTH bits)
-//        val mFeatureData = master Stream SInt(convConfig.FEATURE_M_DATA_WIDTH bits)
-        val mNormData = master (Stream (Vec(SInt(convConfig.addChannelTimesWidth bits),convConfig.COMPUTE_CHANNEL_OUT_NUM))) //调试使用
+        //        val mFeatureData = master Stream SInt(convConfig.FEATURE_M_DATA_WIDTH bits)
+        val mNormData = master(Stream(Vec(SInt(convConfig.addChannelTimesWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM))) //调试使用
         val copyWeightDone = out Bool()
 
         val rowNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
@@ -233,6 +233,8 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val enPadding = in Bool()
         val zeroDara = in Bits (convConfig.dataGenerateConfig.DATA_WIDTH bits)
         val zeroNum = in UInt (convConfig.dataGenerateConfig.paddingConfig.ZERO_NUM_WIDTH bits)
+        val weightNum = in UInt (log2Up(convConfig.WEIGHT_S_DATA_DEPTH) bits)
+        val quanNum = in UInt (log2Up(convConfig.QUAN_S_DATA_DEPTH) bits)
     }
     noIoPrefix()
 
@@ -254,6 +256,9 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     computeCtrl.io.channelIn <> io.channelIn
     computeCtrl.io.channelOut <> io.channelOut
 
+    /** *********************************************************** */
+    computeCtrl.io.mDataReady <> io.mNormData.ready
+    /** *********************************************************** */
 
     val loadWeight = LoadWeight(convConfig)
     loadWeight.io.sData <> io.sParaData
@@ -262,14 +267,21 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         loadWeight.io.weightRead(i).addr <> computeCtrl.io.weightReadAddr(i)
     }
     loadWeight.io.copyWeightDone <> io.copyWeightDone
+    loadWeight.io.weightNum <> io.weightNum
+    loadWeight.io.quanNum <> io.quanNum
 
+    /** ******************************************************************* */
+    loadWeight.io.shiftRead.addr := 0
+    loadWeight.io.scaleRead.addr := 0
+    loadWeight.io.biasRead.addr := 0
+    /** ******************************************************************* */
 
     val sReady = Vec(Bool(), convConfig.KERNEL_NUM)
     val mReady = Vec(Bool(), convConfig.KERNEL_NUM)
     computeCtrl.io.sDataReady <> mReady(0)
     val featureFifo = Array.tabulate(convConfig.KERNEL_NUM) { i =>
         def gen: WaXpmSyncFifo = {
-            val fifo = WaXpmSyncFifo(XPM_FIFO_SYNC_CONFIG(MEM_TYPE.block, 0, FIFO_READ_MODE.fwft, convConfig.FEATURE_RAM_DEPTH, convConfig.FEATURE_S_DATA_WIDTH, convConfig.FEATURE_M_DATA_WIDTH), computeCtrl.io.mCount, computeCtrl.io.sCount, sReady(i), mReady(i))
+            val fifo = WaXpmSyncFifo(XPM_FIFO_SYNC_CONFIG(MEM_TYPE.block, 0, FIFO_READ_MODE.fwft, convConfig.FEATURE_RAM_DEPTH, convConfig.FEATURE_S_DATA_WIDTH, convConfig.FEATURE_S_DATA_WIDTH))
             //val fifo = WaStreamFifo(UInt(convConfig.FEATURE_S_DATA_WIDTH bits), convConfig.FEATURE_RAM_DEPTH, computeCtrl.io.mCount, computeCtrl.io.sCount, sReady(i), mReady(i))
             if (convConfig.KERNEL_NUM == 9) {
                 fifo.dataIn <> dataGenerate.io.mData(i)
@@ -277,18 +289,22 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
                 fifo.dataIn <> io.sFeatureData
             }
             //fifo.io.pop.valid <> computeCtrl.io.featureMemWriteValid
-            fifo.fifo.io.rd_en <> computeCtrl.io.featureMemWriteReady
+            fifo.rd_en <> computeCtrl.io.featureMemWriteReady
+            fifo.sCount <> computeCtrl.io.sCount.resized
+            fifo.mCount <> computeCtrl.io.mCount.resized
+            fifo.sReady <> sReady(i)
+            fifo.mReady <> mReady(i)
             fifo
         }
 
         gen
     }
 
-    val featureMemOutData = Vec(UInt(convConfig.FEATURE_M_DATA_WIDTH bits), convConfig.KERNEL_NUM)
+    val featureMemOutData = Vec(UInt(convConfig.FEATURE_S_DATA_WIDTH bits), convConfig.KERNEL_NUM)
     val featureMem = Array.tabulate(convConfig.KERNEL_NUM) { i =>
         def gen: Mem[UInt] = {
-            val mem = Mem((UInt(convConfig.FEATURE_M_DATA_WIDTH bits)), wordCount = convConfig.FEATURE_MEM_DEPTH)
-            mem.write(computeCtrl.io.featureMemWriteAddr, featureFifo(i).fifo.io.dout, featureFifo(i).fifo.io.rd_en)
+            val mem = Mem((UInt(convConfig.FEATURE_S_DATA_WIDTH bits)), wordCount = convConfig.FEATURE_MEM_DEPTH)
+            mem.write(computeCtrl.io.featureMemWriteAddr, featureFifo(i).dout, featureFifo(i).rd_en)
             featureMemOutData(i) := mem.readSync(computeCtrl.io.featureMemReadAddr)
             mem
         }
@@ -311,7 +327,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         def gen = {
             val add = xAdd(convConfig.mulWeightWidth, convConfig.addKernelWidth, convConfig.KERNEL_NUM)
             (0 until convConfig.KERNEL_NUM).foreach(k => {
-                add.io.A(k) <> mulFeatureWeightData(i)(j)(k).asSInt
+                add.io.A(k) <> mulFeatureWeightData(k)(i)(j).asSInt
             }
             )
             add.io.S <> addKernelData(i)(j)
@@ -346,8 +362,19 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         gen
     }
 
+    /** ************************************************************** */
+    io.mNormData.valid <> computeCtrl.io.normValid
+    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
+        io.mNormData.payload(i) <> addChannelTimesData(i)
+    })
+
+    /** ************************************************************** */
+
 }
 
+object ConvCompute extends App {
+    SpinalVerilog(new ConvCompute(ConvConfig(8, 16, 8, 12, 2048, 512, 640, 2048, 1, ConvType.conv33)))
+}
 
 class Conv(convConfig: ConvConfig) extends Component {
     val io = new Bundle {
@@ -492,7 +519,7 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
 
     case class copyQuan(enCnt: Bool, wea: Bool, dina: UInt, addrb: UInt, doutb: UInt, clk: ClockDomain) extends Area {
         val copyCnt = WaCounter(enCnt, log2Up(convConfig.QUAN_S_DATA_DEPTH), io.quanNum - 1)
-        val ram = new sdpram(convConfig.QUAN_S_DATA_WIDTH, convConfig.QUAN_S_DATA_DEPTH, convConfig.QUAN_M_DATA_WIDTH, convConfig.QUAN_M_DATA_DEPTH, MEM_TYPE.distributed, 0, CLOCK_MODE.common_clock, clk, clk)
+        val ram = new sdpram(convConfig.QUAN_S_DATA_WIDTH, convConfig.QUAN_S_DATA_DEPTH, convConfig.QUAN_M_DATA_WIDTH, convConfig.QUAN_M_DATA_DEPTH, MEM_TYPE.block, 1, CLOCK_MODE.common_clock, clk, clk)
         ram.io.ena <> True
         ram.io.wea <> wea.asBits
         ram.io.dina <> dina.asBits

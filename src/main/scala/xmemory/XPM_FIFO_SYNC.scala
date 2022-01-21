@@ -30,7 +30,7 @@ case class XPM_FIFO_SYNC_CONFIG(memoryType:String,readLatency:Int,readMode:Strin
 
 }
 
-class XPM_FIFO_SYNC(config: XPM_FIFO_SYNC_CONFIG) extends BlackBox{
+class xpm_fifo_sync(config: XPM_FIFO_SYNC_CONFIG) extends BlackBox{
     addGeneric("CASCADE_HEIGHT",config.CASCADE_HEIGHT)
     addGeneric("DOUT_RESET_VALUE",config.DOUT_RESET_VALUE)
     addGeneric("ECC_MODE",config.ECC_MODE)
@@ -112,7 +112,7 @@ case class FifoSync(config: XPM_FIFO_SYNC_CONFIG) extends Component {
     injectsbiterr := False
     val sleep=Bool()
     sleep:= False
-    val temp = new XPM_FIFO_SYNC(config)
+    val temp = new xpm_fifo_sync(config).setName("xpm_fifo_sync")
     temp.io.almost_empty <> almost_empty
     temp.io.almost_full <> almost_full
     temp.io.data_valid <> io.data_valid
