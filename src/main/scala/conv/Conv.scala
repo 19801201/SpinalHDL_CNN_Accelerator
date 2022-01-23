@@ -200,13 +200,15 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     io.featureMemReadAddr := increase(featureMemReadAddrTemp, channelInCnt.valid, 2)
 
     val weightReadAddr = Reg(UInt(log2Up(convConfig.WEIGHT_M_DATA_DEPTH) bits))
-    val weightReadAddrTemp = increase(weightReadAddr, channelInCnt.valid && channelOutCnt.valid, 2)
+    val weightReadAddrTemp = increase(weightReadAddr, channelInCnt.valid && channelOutCnt.valid, 1)
     io.weightReadAddr.map(_ := weightReadAddrTemp)
 
     val channelTimesAdd = Reg(Bool()) init False
     setClear(channelTimesAdd, convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.count === 0)
-    io.normPreValid := Delay(channelTimesAdd, 25)
-    io.normValid := RegNext(io.normPreValid)
+    io.normPreValid := Delay(channelTimesAdd, 11)
+    val  normValidTemp = Reg(Bool()) init False
+    setClear(normValidTemp,convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.count === computeChannelInTimes-1)
+    io.normValid := Delay(normValidTemp,12)
 
 }
 
@@ -302,10 +304,15 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
 
     val featureMemOutData = Vec(UInt(convConfig.FEATURE_S_DATA_WIDTH bits), convConfig.KERNEL_NUM)
     val featureMem = Array.tabulate(convConfig.KERNEL_NUM) { i =>
-        def gen: Mem[UInt] = {
-            val mem = Mem((UInt(convConfig.FEATURE_S_DATA_WIDTH bits)), wordCount = convConfig.FEATURE_MEM_DEPTH)
-            mem.write(computeCtrl.io.featureMemWriteAddr, featureFifo(i).dout, featureFifo(i).rd_en)
-            featureMemOutData(i) := mem.readSync(computeCtrl.io.featureMemReadAddr)
+        def gen = {
+            val mem = new sdpram(convConfig.FEATURE_S_DATA_WIDTH,convConfig.FEATURE_MEM_DEPTH,convConfig.FEATURE_S_DATA_WIDTH,convConfig.FEATURE_MEM_DEPTH,MEM_TYPE.distributed,0,CLOCK_MODE.common_clock,this.clockDomain,this.clockDomain)
+            mem.io.wea <> B"1'b1"
+            mem.io.ena := featureFifo(i).rd_en
+            mem.io.dina <> featureFifo(i).dout.asBits
+            mem.io.addra <> computeCtrl.io.featureMemWriteAddr.asBits
+            featureMemOutData(i) := mem.io.doutb.asUInt
+            mem.io.addrb <> computeCtrl.io.featureMemReadAddr.asBits
+            mem.io.enb <> True
             mem
         }
 
@@ -325,7 +332,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     val addKernelData = Vec(Vec(SInt(convConfig.addKernelWidth bits), convConfig.COMPUTE_CHANNEL_IN_NUM), convConfig.COMPUTE_CHANNEL_OUT_NUM / 2)
     val addKernel = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM / 2, convConfig.COMPUTE_CHANNEL_IN_NUM) { (i, j) =>
         def gen = {
-            val add = xAdd(convConfig.mulWeightWidth, convConfig.addKernelWidth, convConfig.KERNEL_NUM)
+            val add = xAdd(convConfig.mulWeightWidth, convConfig.addKernelWidth, convConfig.KERNEL_NUM).setName("addKernel")
             (0 until convConfig.KERNEL_NUM).foreach(k => {
                 add.io.A(k) <> mulFeatureWeightData(k)(i)(j).asSInt
             }
@@ -373,7 +380,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
 }
 
 object ConvCompute extends App {
-    SpinalVerilog(new ConvCompute(ConvConfig(8, 16, 8, 12, 2048, 512, 640, 2048, 1, ConvType.conv33)))
+    SpinalVerilog(new ConvCompute(ConvConfig(8, 8, 8, 12, 8192, 512, 10, 2048, 1, ConvType.conv33)))
 }
 
 class Conv(convConfig: ConvConfig) extends Component {
@@ -467,7 +474,7 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
 
     val fsm = LoadWeightFsm(io.start)
     val copyWeightCnt = WaCounter(fsm.currentState === LoadWeightEnum.COPY_WEIGHT && io.sData.fire, log2Up(convConfig.WEIGHT_S_DATA_DEPTH), io.weightNum - 1)
-    val copyWeightTimes = WaCounter(copyWeightCnt.valid, convConfig.KERNEL_NUM.toBinaryString.length, convConfig.KERNEL_NUM)
+    val copyWeightTimes = WaCounter(copyWeightCnt.valid, convConfig.KERNEL_NUM.toBinaryString.length, convConfig.KERNEL_NUM - 1)
     fsm.copyWeightEnd := copyWeightCnt.valid && copyWeightTimes.valid
 
     when(fsm.currentState === LoadWeightEnum.COPY_WEIGHT || fsm.currentState === LoadWeightEnum.COPY_SHIFT || fsm.currentState === LoadWeightEnum.COPY_BIAS || fsm.currentState === LoadWeightEnum.COPY_SCALE) {
@@ -478,7 +485,7 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
 
 
     val weav = Vec(Bool(), convConfig.KERNEL_NUM)
-    when(io.sData.fire) {
+    when(io.sData.fire && fsm.currentState === LoadWeightEnum.COPY_WEIGHT) {
         switch(copyWeightTimes.count) {
             (0 until convConfig.KERNEL_NUM).foreach(i => {
                 is(i) {

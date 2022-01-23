@@ -185,7 +185,8 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     })
 
 
-    val mAddr = WaCounter(fifo(0).io.pop.fire, featureGenerateConfig.FEATURE_WIDTH, totalColAddr - 1)
+    //val mAddr = WaCounter(fifo(0).io.pop.fire, featureGenerateConfig.FEATURE_WIDTH, totalColAddr - 1)
+    val mAddr = WaCounter(fifo(0).io.pop.fire, totalColAddr.getWidth, totalColAddr - 1)
     when(fsm.currentState === FeatureGenerateEnum.IDLE) {
         mAddr.clear
     }

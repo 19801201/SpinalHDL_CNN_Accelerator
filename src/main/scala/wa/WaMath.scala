@@ -63,13 +63,11 @@ class xMulC(
     val c = Reg(UInt(16 bits))
     when(io.A(7)) {
         a := U"8'hFF" * io.B
-        b := (a << 8).resized
-        c := b
     } otherwise {
         a := 0
-        b := a
-        c := b
     }
+    b := (a << 8).resized
+    c := b
     io.P := tempOut + c
 
 
