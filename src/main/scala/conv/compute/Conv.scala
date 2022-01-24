@@ -1,4 +1,4 @@
-package conv
+package conv.compute
 
 import conv.dataGenerate._
 import spinal.core._
@@ -147,10 +147,9 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
         val mCount = out UInt (log2Up(convConfig.FEATURE_RAM_DEPTH) bits)
     }
     noIoPrefix()
-    val computeChannelInTimes = RegNext(io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM))
-    val computeChannelOutTimes = RegNext(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM))
-    io.sCount := RegNext(io.colNumIn * computeChannelInTimes).resized
-    io.mCount := io.sCount
+//    val computeChannelInTimes = RegNext(io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM))
+//    val computeChannelOutTimes = RegNext(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM))
+
 
     val convComputeCtrlFsm = ConvComputeCtrlFsm()
     convComputeCtrlFsm.start <> io.start
@@ -205,10 +204,16 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
 
     val channelTimesAdd = Reg(Bool()) init False
     setClear(channelTimesAdd, convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.count === 0)
-    io.normPreValid := Delay(channelTimesAdd, 11)
+    /*******************************************************************************************/
+    //这个值有待测试其他情况
+    val delayCount = 2 + 3 + 4 + log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)
+    io.normPreValid := Delay(channelTimesAdd, delayCount - 1)
     val  normValidTemp = Reg(Bool()) init False
-    setClear(normValidTemp,convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.count === computeChannelInTimes-1)
-    io.normValid := Delay(normValidTemp,12)
+    setClear(normValidTemp,convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.valid)
+    io.normValid := Delay(normValidTemp,delayCount)
+    /*******************************************************************************************/
+    io.sCount := RegNext(io.colNumIn * channelInTimes).resized
+    io.mCount := io.sCount
 
 }
 
@@ -305,14 +310,17 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     val featureMemOutData = Vec(UInt(convConfig.FEATURE_S_DATA_WIDTH bits), convConfig.KERNEL_NUM)
     val featureMem = Array.tabulate(convConfig.KERNEL_NUM) { i =>
         def gen = {
-            val mem = new sdpram(convConfig.FEATURE_S_DATA_WIDTH,convConfig.FEATURE_MEM_DEPTH,convConfig.FEATURE_S_DATA_WIDTH,convConfig.FEATURE_MEM_DEPTH,MEM_TYPE.distributed,0,CLOCK_MODE.common_clock,this.clockDomain,this.clockDomain)
-            mem.io.wea <> B"1'b1"
-            mem.io.ena := featureFifo(i).rd_en
-            mem.io.dina <> featureFifo(i).dout.asBits
-            mem.io.addra <> computeCtrl.io.featureMemWriteAddr.asBits
-            featureMemOutData(i) := mem.io.doutb.asUInt
-            mem.io.addrb <> computeCtrl.io.featureMemReadAddr.asBits
-            mem.io.enb <> True
+//            val mem = new sdpram(convConfig.FEATURE_S_DATA_WIDTH,convConfig.FEATURE_MEM_DEPTH,convConfig.FEATURE_S_DATA_WIDTH,convConfig.FEATURE_MEM_DEPTH,MEM_TYPE.distributed,0,CLOCK_MODE.common_clock,this.clockDomain,this.clockDomain)
+//            mem.io.wea <> B"1'b1"
+//            mem.io.ena := featureFifo(i).rd_en
+//            mem.io.dina <> featureFifo(i).dout.asBits
+//            mem.io.addra <> computeCtrl.io.featureMemWriteAddr.asBits
+//            featureMemOutData(i) := mem.io.doutb.asUInt
+//            mem.io.addrb <> computeCtrl.io.featureMemReadAddr.asBits
+//            mem.io.enb <> True
+            val mem = new Mem(UInt(convConfig.FEATURE_S_DATA_WIDTH bits),wordCount = convConfig.FEATURE_MEM_DEPTH)
+            mem.write(computeCtrl.io.featureMemWriteAddr,featureFifo(i).dout,featureFifo(i).rd_en)
+            featureMemOutData(i) := mem.readAsync(computeCtrl.io.featureMemReadAddr)
             mem
         }
 
