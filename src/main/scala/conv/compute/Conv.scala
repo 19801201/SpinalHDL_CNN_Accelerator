@@ -53,6 +53,8 @@ case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHAN
     val addChannelInWidth = addKernelWidth + 2 * (if (COMPUTE_CHANNEL_IN_NUM == 1) 0 else log2Up(COMPUTE_CHANNEL_IN_NUM))
     val addChannelTimesWidth = 32
 
+    val leakyRatio = 0.1
+
     val dataGenerateConfig = DataGenerateConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_IN_NUM, FEATURE_WIDTH, KERNEL_NUM, log2Up(FEATURE_RAM_DEPTH), ZERO_NUM)
 
 }
