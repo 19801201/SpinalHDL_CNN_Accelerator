@@ -79,17 +79,17 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
     }
     noIoPrefix()
 
-    val leaky = U((convConfig.leakyRatio * scala.math.pow(2,18)).toInt,16 bits)
-    val midHigh = U((0.51 * scala.math.pow(2,18)).toInt,18 bits)
-    val midLow = U((0.49 * scala.math.pow(2,18)).toInt,18 bits)
+    val leaky = U((convConfig.leakyRatio * scala.math.pow(2, 18)).toInt, 16 bits)
+    val midHigh = U((0.51 * scala.math.pow(2, 18)).toInt, 18 bits)
+    val midLow = U((0.49 * scala.math.pow(2, 18)).toInt, 18 bits)
 
     def <<(in: SInt, genTcl: Boolean): SInt = {
         val out = Reg(SInt(16 bits))
 
         val mulTemp = SInt(32 bits)
         val mantissa = mulTemp(17 downto 0)
-        val odd =  (mulTemp >> 18) + 1
-        val even =  mulTemp >> 18
+        val odd = (mulTemp >> 18) + 1
+        val even = mulTemp >> 18
         val mul = Mul(16, 16, 32, MulConfig.signed, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "leakyReluMul", genTcl)
         mul.io.A <> in
         mul.io.B <> leaky
@@ -101,12 +101,12 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
         } otherwise {
             when(mantissa.asUInt >= midHigh) {
                 out := odd.resized
-            } elsewhen(mantissa.asUInt <= midLow){
+            } elsewhen (mantissa.asUInt <= midLow) {
                 out := even.resized
-            } otherwise{
-                when(mulTemp(18)){
+            } otherwise {
+                when(mulTemp(18)) {
                     out := odd.resized
-                } otherwise{
+                } otherwise {
                     out := even.resized
                 }
             }
@@ -114,12 +114,48 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
 
         out
     }
-    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i=>{
-        io.dataOut(i) := <<(io.dataIn(i),i==0)
+
+    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
+        io.dataOut(i) := <<(io.dataIn(i), i == 0)
     })
 }
 
 //object LeakyRelu extends App {
 //    SpinalVerilog(new LeakyRelu(ConvConfig(8, 8, 8, 12, 8192, 512, 10, 2048, 1, ConvType.conv33)))
+//}
+
+class Zero(convConfig: ConvConfig) extends Component {
+    val io = new Bundle {
+        val dataIn = in Vec(SInt(16 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
+        val quan = in UInt (8 bits)
+        val dataOut = out Vec(UInt(8 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
+    }
+    val addZeroTemp = Vec(SInt(16 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
+    val addZero = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM)(i => {
+        def gen = {
+            val add = AddSub(16, 8, 16, AddSubConfig.signed, AddSubConfig.unsigned, 1, AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "AddZero", i == 0)
+            add.io.A <> io.dataIn(i)
+            add.io.B <> io.quan
+            add.io.S <> addZeroTemp(i)
+            add
+        }
+
+        gen
+    })
+
+    val normalData = Vec(Reg(UInt(8 bits)), convConfig.COMPUTE_CHANNEL_OUT_NUM)
+    io.dataOut := normalData
+    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
+        when(addZeroTemp(i).sign) {
+            normalData(i) := 0
+        } elsewhen(addZeroTemp(i)>=255){
+            normalData(i) := 255
+        } otherwise{
+            normalData(i) := addZeroTemp(i).asUInt.resized
+        }
+    })
+}
+//object Zero extends App {
+//    SpinalVerilog(new Zero(ConvConfig(8, 8, 8, 12, 8192, 512, 10, 2048, 1, ConvType.conv33)))
 //}
 
