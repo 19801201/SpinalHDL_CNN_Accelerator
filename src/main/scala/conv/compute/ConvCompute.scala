@@ -13,7 +13,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val startCu = in Bool()
         val sParaData = slave Stream UInt(convConfig.WEIGHT_S_DATA_WIDTH bits)
         val sFeatureData = slave Stream UInt(convConfig.FEATURE_S_DATA_WIDTH bits)
-        //        val mFeatureData = master Stream SInt(convConfig.FEATURE_M_DATA_WIDTH bits)
+        val mFeatureData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits)
         val mNormData = master(Stream(Vec(SInt(convConfig.addChannelTimesWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM))) //调试使用
         val copyWeightDone = out Bool()
 
@@ -22,10 +22,12 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val channelIn = in UInt (convConfig.CHANNEL_WIDTH bits)
         val channelOut = in UInt (convConfig.CHANNEL_WIDTH bits)
         val enPadding = in Bool()
+        val enActivation = in Bool()
         val zeroDara = in Bits (convConfig.dataGenerateConfig.DATA_WIDTH bits)
         val zeroNum = in UInt (convConfig.dataGenerateConfig.paddingConfig.ZERO_NUM_WIDTH bits)
         val weightNum = in UInt (log2Up(convConfig.WEIGHT_S_DATA_DEPTH) bits)
         val quanNum = in UInt (log2Up(convConfig.QUAN_S_DATA_DEPTH) bits)
+        val quanZeroData = in UInt(8 bits)
     }
     noIoPrefix()
 
@@ -46,9 +48,10 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     computeCtrl.io.rowNumIn <> io.rowNumIn
     computeCtrl.io.channelIn <> io.channelIn
     computeCtrl.io.channelOut <> io.channelOut
-
+    computeCtrl.io.activationEn <> io.enActivation
     /** *********************************************************** */
-    computeCtrl.io.mDataReady <> io.mNormData.ready
+    computeCtrl.io.mDataReady <> io.mFeatureData.ready
+    computeCtrl.io.mDataValid <> io.mFeatureData.valid
     /** *********************************************************** */
 
     val loadWeight = LoadWeight(convConfig)
@@ -62,9 +65,9 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     loadWeight.io.quanNum <> io.quanNum
 
     /** ******************************************************************* */
-    loadWeight.io.shiftRead.addr := 0
-    loadWeight.io.scaleRead.addr := 0
-    loadWeight.io.biasRead.addr := 0
+    loadWeight.io.shiftRead.addr := computeCtrl.io.shiftReadAddr
+    loadWeight.io.scaleRead.addr := computeCtrl.io.scaleReadAddr
+    loadWeight.io.biasRead.addr := computeCtrl.io.biasReadAddr
     /** ******************************************************************* */
 
     val sReady = Vec(Bool(), convConfig.KERNEL_NUM)
@@ -168,6 +171,15 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     })
 
     /** ************************************************************** */
+
+    val quan = new Quan(convConfig)
+    quan.io.dataIn <> addChannelTimesData
+    quan.io.biasIn <> loadWeight.io.biasRead.data
+    quan.io.scaleIn <> loadWeight.io.scaleRead.data
+    quan.io.shiftIn <> loadWeight.io.shiftRead.data
+    quan.io.zeroIn <> io.quanZeroData
+    quan.io.dataOut <> io.mFeatureData.payload
+    quan.io.activationEn <> io.enActivation
 
 }
 

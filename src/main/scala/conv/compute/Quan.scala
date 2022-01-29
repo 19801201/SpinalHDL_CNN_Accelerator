@@ -1,13 +1,48 @@
 package conv.compute
 
+import conv.compute.activation.LeakyRelu
 import spinal.core._
 import spinal.lib._
 import wa.xip._
 
 class Quan(convConfig: ConvConfig) extends Component {
+    val io = new Bundle {
+        val dataIn = in Vec(SInt(convConfig.addChannelTimesWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
+        val biasIn = in UInt (convConfig.QUAN_M_DATA_WIDTH bits)
+        val scaleIn = in UInt (convConfig.QUAN_M_DATA_WIDTH bits)
+        val shiftIn = in UInt (convConfig.QUAN_M_DATA_WIDTH bits)
+        val zeroIn = in UInt (8 bits)
+        val activationEn = in Bool()
+        val dataOut = out UInt (convConfig.COMPUTE_CHANNEL_OUT_NUM * 8 bits)
+    }
+    noIoPrefix()
+    val bias = new Bias(convConfig)
+    bias.port.dataIn <> io.dataIn
+    bias.port.quan <> io.biasIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices)
 
+    val scale = new Scale(convConfig)
+    scale.port.dataIn <> bias.port.dataOut
+    scale.port.quan <> io.scaleIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices)
+
+    val shift = new Shift(convConfig)
+    shift.port.dataIn <> scale.port.dataOut
+    shift.port.quan <> io.shiftIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices)
+
+    val leakyRelu = new LeakyRelu(convConfig)
+    leakyRelu.io.dataIn <> shift.port.dataOut
+
+    val zero = new Zero(convConfig)
+    when(io.activationEn){
+        zero.io.dataIn <> leakyRelu.io.dataOut
+    } otherwise{
+        zero.io.dataIn <> shift.port.dataOut
+    }
+    zero.io.quan <> io.zeroIn
+    io.dataOut.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices) <> zero.io.dataOut
 }
-
+//object Quan extends App {
+//    SpinalVerilog(new Quan(ConvConfig(8, 8, 8, 12, 8192, 512, 10, 2048, 1, ConvType.conv33)))
+//}
 
 case class QuanSubPort(convConfig: ConvConfig, inWidth: Int, quanWidth: Int, outWidth: Int) extends Bundle {
     val dataIn = in Vec(SInt(inWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
@@ -73,13 +108,13 @@ class Shift(convConfig: ConvConfig) extends Component {
 //}
 
 
-
 class Zero(convConfig: ConvConfig) extends Component {
     val io = new Bundle {
         val dataIn = in Vec(SInt(16 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
         val quan = in UInt (8 bits)
         val dataOut = out Vec(UInt(8 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
     }
+    noIoPrefix()
     val addZeroTemp = Vec(SInt(16 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
     val addZero = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM)(i => {
         def gen = {
@@ -98,9 +133,9 @@ class Zero(convConfig: ConvConfig) extends Component {
     (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
         when(addZeroTemp(i).sign) {
             normalData(i) := 0
-        } elsewhen(addZeroTemp(i)>=255){
+        } elsewhen (addZeroTemp(i) >= 255) {
             normalData(i) := 255
-        } otherwise{
+        } otherwise {
             normalData(i) := addZeroTemp(i).asUInt.resized
         }
     })
