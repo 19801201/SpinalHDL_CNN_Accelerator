@@ -32,12 +32,13 @@ class Quan(convConfig: ConvConfig) extends Component {
     leakyRelu.io.dataIn <> shift.port.dataOut
 
     val zero = new Zero(convConfig)
-    when(io.activationEn){
+    when(io.activationEn) {
         zero.io.dataIn <> leakyRelu.io.dataOut
-    } otherwise{
+    } otherwise {
         zero.io.dataIn <> shift.port.dataOut
     }
     zero.io.quan <> io.zeroIn
+    zero.io.activationEn <> io.activationEn
     io.dataOut.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices) <> zero.io.dataOut
 }
 //object Quan extends App {
@@ -112,6 +113,7 @@ class Zero(convConfig: ConvConfig) extends Component {
     val io = new Bundle {
         val dataIn = in Vec(SInt(16 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
         val quan = in UInt (8 bits)
+        val activationEn = in Bool()
         val dataOut = out Vec(UInt(8 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
     }
     noIoPrefix()
@@ -132,7 +134,11 @@ class Zero(convConfig: ConvConfig) extends Component {
     io.dataOut := normalData
     (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
         when(addZeroTemp(i).sign) {
-            normalData(i) := 0
+            when(io.activationEn) {
+                normalData(i) := io.quan
+            } otherwise {
+                normalData(i) := 0
+            }
         } elsewhen (addZeroTemp(i) >= 255) {
             normalData(i) := 255
         } otherwise {
