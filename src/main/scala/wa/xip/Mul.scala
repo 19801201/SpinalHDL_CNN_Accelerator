@@ -67,12 +67,12 @@ object Mul {
 
     private def genTcl(A_WIDTH: Int, B_WIDTH: Int, A_TYPE: String, B_TYPE: String, PIPELINE_STAGE: Int, RESOURCES_TYPE: String, componentName: String, outMsb: Int, outLsb: Int): Unit = {
         import java.io._
-        val createIlaCmd = s"set mulExit [lsearch -exact [get_ips $componentName] $componentName]\n" +
+        val createMulCmd = s"set mulExit [lsearch -exact [get_ips $componentName] $componentName]\n" +
             s"if { $$mulExit <0} {\n" +
             s"create_ip -name mult_gen -vendor xilinx.com -library ip -version 12.0 -module_name $componentName\n" +
             s"}\n"
         val tclHeader = new PrintWriter(new File(s"generate$componentName.tcl"))
-        tclHeader.write(createIlaCmd)
+        tclHeader.write(createMulCmd)
         tclHeader.write(s"set_property -dict [list ")
         tclHeader.write(s"CONFIG.PortAWidth {$A_WIDTH} ")
         tclHeader.write(s"CONFIG.PortAType {$A_TYPE} ")
