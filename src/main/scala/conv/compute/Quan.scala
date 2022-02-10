@@ -4,6 +4,7 @@ import conv.compute.activation.LeakyRelu
 import spinal.core._
 import spinal.lib._
 import wa.xip._
+import wa.xip.math.{AddSub, AddSubConfig, Mul, MulConfig}
 
 class Quan(convConfig: ConvConfig) extends Component {
     val io = new Bundle {

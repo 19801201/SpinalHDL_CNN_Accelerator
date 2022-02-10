@@ -3,7 +3,8 @@ package conv.compute.activation
 import conv.compute.ConvConfig
 import spinal.core._
 import spinal.lib._
-import wa.xip.{Mul, MulConfig}
+import wa.xip.math.MulConfig
+import wa.xip.math.{Mul, MulConfig}
 
 class LeakyRelu(convConfig: ConvConfig) extends Component {
     val io = new Bundle {

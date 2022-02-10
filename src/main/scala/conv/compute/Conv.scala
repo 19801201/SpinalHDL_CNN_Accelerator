@@ -4,10 +4,6 @@ import conv.dataGenerate._
 import spinal.core._
 import spinal.lib._
 import wa._
-import xmemory._
-
-
-
 
 
 class Conv(convConfig: ConvConfig) extends Component {

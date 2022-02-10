@@ -2,8 +2,8 @@ package conv.compute
 
 import spinal.core._
 import spinal.lib._
+import wa.xip.memory.xpm.{CLOCK_MODE, MEM_TYPE, sdpram}
 import wa.{WaCounter, setClear}
-import xmemory.{CLOCK_MODE, MEM_TYPE, sdpram}
 
 case class WeightReadPort[T <: Data](dataType: HardType[T], depth: Int) extends Bundle {
     val addr = in UInt (log2Up(depth) bits)

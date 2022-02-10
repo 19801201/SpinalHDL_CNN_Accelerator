@@ -1,4 +1,4 @@
-package wa.xip
+package wa.xip.math
 
 import spinal.core._
 

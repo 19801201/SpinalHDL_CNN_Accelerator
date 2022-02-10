@@ -2,7 +2,7 @@ package wa
 
 import spinal.core._
 import spinal.lib._
-import xmemory.{FifoSync, XPM_FIFO_SYNC_CONFIG}
+import wa.xip.memory.xpm.{FifoSync, XPM_FIFO_SYNC_CONFIG}
 
 object WaStreamFifo {
     def apply[T <: Data](dataType: T, depth: Int) = new WaStreamFifo(dataType, depth)

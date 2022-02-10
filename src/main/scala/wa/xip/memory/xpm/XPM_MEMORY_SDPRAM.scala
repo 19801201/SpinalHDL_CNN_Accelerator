@@ -1,4 +1,4 @@
-package xmemory
+package wa.xip.memory.xpm
 
 import spinal.core._
 

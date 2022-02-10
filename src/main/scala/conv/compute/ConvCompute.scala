@@ -3,8 +3,8 @@ package conv.compute
 import conv.dataGenerate.DataGenerate
 import spinal.core._
 import spinal.lib._
+import wa.xip.memory.xpm.{FIFO_READ_MODE, MEM_TYPE, XPM_FIFO_SYNC_CONFIG}
 import wa.{WaXpmSyncFifo, xAdd, xMul}
-import xmemory.{FIFO_READ_MODE, MEM_TYPE, XPM_FIFO_SYNC_CONFIG}
 
 class ConvCompute(convConfig: ConvConfig) extends Component {
 

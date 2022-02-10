@@ -1,4 +1,4 @@
-package xmemory
+package wa.xip.memory.xpm
 
 object MEM_TYPE {
     val auto = "auto"
