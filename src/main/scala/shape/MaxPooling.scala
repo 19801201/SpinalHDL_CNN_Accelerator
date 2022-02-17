@@ -12,14 +12,15 @@ case class MaxPoolingConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: 
 }
 
 class MaxPooling(maxPoolingConfig: MaxPoolingConfig) extends Component {
-    val io = new Bundle {
-        //  val start = in Bool()
-        val sData = slave Stream (UInt(maxPoolingConfig.STREAM_DATA_WIDTH bits))
-        val mData = master Stream (UInt(maxPoolingConfig.STREAM_DATA_WIDTH bits))
-        val rowNumIn = in UInt (maxPoolingConfig.FEATURE_WIDTH bits)
-        val colNumIn = in UInt (maxPoolingConfig.FEATURE_WIDTH bits)
-        val channelIn = in UInt (maxPoolingConfig.CHANNEL_WIDTH bits)
-    }
+    //    val io = new Bundle {
+    //        //  val start = in Bool()
+    //        val sData = slave Stream (UInt(maxPoolingConfig.STREAM_DATA_WIDTH bits))
+    //        val mData = master Stream (UInt(maxPoolingConfig.STREAM_DATA_WIDTH bits))
+    //        val rowNumIn = in UInt (maxPoolingConfig.FEATURE_WIDTH bits)
+    //        val colNumIn = in UInt (maxPoolingConfig.FEATURE_WIDTH bits)
+    //        val channelIn = in UInt (maxPoolingConfig.CHANNEL_WIDTH bits)
+    //    }
+    val io = ShapePort(maxPoolingConfig.STREAM_DATA_WIDTH, maxPoolingConfig.FEATURE_WIDTH, maxPoolingConfig.CHANNEL_WIDTH)
     noIoPrefix()
     val computeChannelTimes = io.channelIn >> log2Up(maxPoolingConfig.COMPUTE_CHANNEL_NUM)
 
@@ -28,7 +29,7 @@ class MaxPooling(maxPoolingConfig: MaxPoolingConfig) extends Component {
     //val computeState = Reg(Bool()) setWhen (io.start)
     //computeState.clearWhen(rowCnt.valid && channelCnt.valid && columnCnt.valid)
     /** ******************************************************************************************** */
-    val channelCnt = WaCounter(io.sData.fire, maxPoolingConfig.CHANNEL_WIDTH, io.channelIn - 1)
+    val channelCnt = WaCounter(io.sData.fire, maxPoolingConfig.CHANNEL_WIDTH, computeChannelTimes - 1)
     val columnCnt = WaCounter(channelCnt.valid, maxPoolingConfig.FEATURE_WIDTH, io.colNumIn - 1)
     val rowCnt = WaCounter(channelCnt.valid && columnCnt.valid, maxPoolingConfig.FEATURE_WIDTH, io.rowNumIn - 1)
     val channelMem = StreamFifo(UInt(maxPoolingConfig.STREAM_DATA_WIDTH bits), maxPoolingConfig.channelMemDepth)
@@ -51,8 +52,6 @@ class MaxPooling(maxPoolingConfig: MaxPoolingConfig) extends Component {
     val dataTemp = Vec(UInt(maxPoolingConfig.DATA_WIDTH bits), maxPoolingConfig.COMPUTE_CHANNEL_NUM)
 
 
-
-
     val rowMem = StreamFifo(UInt(maxPoolingConfig.STREAM_DATA_WIDTH bits), maxPoolingConfig.ROW_MEM_DEPTH)
     rowMem.io.push.valid <> (RegNext(columnCnt.count(0)) && (!rowCnt.count(0)))
     rowMem.io.push.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices) <> dataTemp
@@ -62,15 +61,14 @@ class MaxPooling(maxPoolingConfig: MaxPoolingConfig) extends Component {
     val dataOut = Vec(UInt(maxPoolingConfig.DATA_WIDTH bits), maxPoolingConfig.COMPUTE_CHANNEL_NUM)
     for (i <- 0 until maxPoolingConfig.COMPUTE_CHANNEL_NUM) {
         dataTemp(i) := compare(io.sData.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices)(i), channelMem.io.pop.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices)(i))
-        dataOut(i) := compare(dataTemp(i),rowMem.io.pop.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices)(i))
+        dataOut(i) := compare(dataTemp(i), rowMem.io.pop.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices)(i))
     }
     io.mData.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices) <> dataTemp
     io.mData.valid <> RegNext(rowCnt.count(0))
 
 
-
 }
 
 object MaxPooling extends App {
-    SpinalVerilog(new MaxPooling(MaxPoolingConfig(8, 16, 640, 10, 1024)))
+    SpinalVerilog(new MaxPooling(MaxPoolingConfig(8, 8, 100, 10, 1024)))
 }
