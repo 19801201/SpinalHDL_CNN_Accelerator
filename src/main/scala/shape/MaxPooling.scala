@@ -23,13 +23,18 @@ class MaxPooling(maxPoolingConfig: MaxPoolingConfig) extends Component {
     val io = ShapePort(maxPoolingConfig.STREAM_DATA_WIDTH, maxPoolingConfig.FEATURE_WIDTH, maxPoolingConfig.CHANNEL_WIDTH)
     noIoPrefix()
     val computeChannelTimes = io.channelIn >> log2Up(maxPoolingConfig.COMPUTE_CHANNEL_NUM)
+    val fifoCountReg = RegNext(computeChannelTimes * io.colNumIn)
+    val fifoCount = out UInt (fifoCountReg.getWidth bits)
+    fifoCount := fifoCountReg
 
-    /** ******************************************************************************************** */
-    /* computeState使用reg可能造成慢一个时钟周期，测试的时候需要注意一下,如果有问题考虑旁路寄存器方案                */
-    //val computeState = Reg(Bool()) setWhen (io.start)
-    //computeState.clearWhen(rowCnt.valid && channelCnt.valid && columnCnt.valid)
-    /** ******************************************************************************************** */
-    val channelCnt = WaCounter(io.sData.fire, maxPoolingConfig.CHANNEL_WIDTH, computeChannelTimes - 1)
+    val fsm = ShapeStateMachine(io.start)
+    fsm.fifoReady := io.fifoReady
+
+    val initCount = WaCounter(fsm.currentState === ShapeStateMachineEnum.INIT, 3, 5)
+    fsm.initEnd := initCount.valid
+
+
+    val channelCnt = WaCounter(io.sData.fire && (fsm.currentState === ShapeStateMachineEnum.COMPUTE), maxPoolingConfig.CHANNEL_WIDTH, computeChannelTimes - 1)
     val columnCnt = WaCounter(channelCnt.valid, maxPoolingConfig.FEATURE_WIDTH, io.colNumIn - 1)
     val rowCnt = WaCounter(channelCnt.valid && columnCnt.valid, maxPoolingConfig.FEATURE_WIDTH, io.rowNumIn - 1)
     val channelMem = StreamFifo(UInt(maxPoolingConfig.STREAM_DATA_WIDTH bits), maxPoolingConfig.channelMemDepth)
@@ -38,6 +43,9 @@ class MaxPooling(maxPoolingConfig: MaxPoolingConfig) extends Component {
     channelMem.io.push.payload <> io.sData.payload
     channelMem.io.pop.ready <> columnCnt.count(0)
 
+
+    fsm.computeEnd := (columnCnt.valid && channelCnt.valid)
+    fsm.last := (rowCnt.valid && columnCnt.valid && channelCnt.valid)
 
     def compare(dataIn1: UInt, dataIn2: UInt): UInt = {
         val dataOut = Reg(UInt(maxPoolingConfig.DATA_WIDTH bits))
