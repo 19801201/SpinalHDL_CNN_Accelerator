@@ -22,8 +22,8 @@ class Split(splitConfig: SplitConfig) extends Component {
     val computeChannelTimes = io.channelIn >> log2Up(splitConfig.COMPUTE_CHANNEL_NUM)
     val channelOut = computeChannelTimes >> 1
     val channelCnt = WaCounter(io.sData.fire, splitConfig.CHANNEL_WIDTH, computeChannelTimes - 1)
-    val columnCnt = WaCounter(channelCnt.valid, splitConfig.FEATURE_WIDTH, io.colNumIn - 1)
-    val rowCnt = WaCounter(channelCnt.valid && columnCnt.valid, splitConfig.FEATURE_WIDTH, io.rowNumIn - 1)
+//    val columnCnt = WaCounter(channelCnt.valid, splitConfig.FEATURE_WIDTH, io.colNumIn - 1)
+//    val rowCnt = WaCounter(channelCnt.valid && columnCnt.valid, splitConfig.FEATURE_WIDTH, io.rowNumIn - 1)
 
     when(channelCnt.count >= channelOut) {
         io.sData <> io.mData
