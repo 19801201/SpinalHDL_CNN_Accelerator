@@ -2,6 +2,7 @@ package conv.compute
 
 import conv.dataGenerate.DataGenerateConfig
 import spinal.core.log2Up
+
 object ConvType {
     val conv33 = "conv33"
     val conv11 = "conv11"
@@ -52,6 +53,6 @@ case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHAN
 
     val leakyRatio = 0.1
 
-    val dataGenerateConfig = DataGenerateConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_IN_NUM, FEATURE_WIDTH, KERNEL_NUM, log2Up(FEATURE_RAM_DEPTH), ZERO_NUM)
+    val dataGenerateConfig = DataGenerateConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_IN_NUM, FEATURE_WIDTH, KERNEL_NUM, FEATURE_RAM_DEPTH, ZERO_NUM)
 
 }

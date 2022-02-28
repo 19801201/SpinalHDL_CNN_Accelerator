@@ -73,15 +73,17 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     val sReady = Vec(Bool(), convConfig.KERNEL_NUM)
     val mReady = Vec(Bool(), convConfig.KERNEL_NUM)
     computeCtrl.io.sDataReady <> mReady(0)
+    dataGenerate.io.mData.ready := sReady(0)
     val featureFifo = Array.tabulate(convConfig.KERNEL_NUM) { i =>
         def gen: WaXpmSyncFifo = {
             val fifo = WaXpmSyncFifo(XPM_FIFO_SYNC_CONFIG(MEM_TYPE.block, 0, FIFO_READ_MODE.fwft, convConfig.FEATURE_RAM_DEPTH, convConfig.FEATURE_S_DATA_WIDTH, convConfig.FEATURE_S_DATA_WIDTH))
             //val fifo = WaStreamFifo(UInt(convConfig.FEATURE_S_DATA_WIDTH bits), convConfig.FEATURE_RAM_DEPTH, computeCtrl.io.mCount, computeCtrl.io.sCount, sReady(i), mReady(i))
             if (convConfig.KERNEL_NUM == 9) {
-                fifo.dataIn <> dataGenerate.io.mData(i)
-            } else {
-                fifo.dataIn <> io.sFeatureData
+                fifo.dataIn <> dataGenerate.io.mData.mData(i)
             }
+                //            else {
+//                fifo.dataIn <> io.sFeatureData
+//            }
             //fifo.io.pop.valid <> computeCtrl.io.featureMemWriteValid
             fifo.rd_en <> computeCtrl.io.featureMemWriteReady
             fifo.sCount <> computeCtrl.io.sCount.resized
@@ -184,5 +186,5 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
 }
 
 object ConvCompute extends App {
-    SpinalVerilog(new ConvCompute(ConvConfig(8, 8, 8, 12, 8192, 512, 10, 2048, 1, ConvType.conv33)))
+    SpinalVerilog(new ConvCompute(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1, ConvType.conv33)))
 }

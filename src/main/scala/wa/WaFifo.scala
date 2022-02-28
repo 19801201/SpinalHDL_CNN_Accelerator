@@ -1,5 +1,6 @@
 package wa
 
+import conv.dataGenerate.GenerateMatrixPort
 import spinal.core._
 import spinal.lib._
 import wa.xip.memory.xpm.{FifoSync, XPM_FIFO_SYNC_CONFIG}
@@ -45,20 +46,22 @@ class WaStreamFifo[T <: Data](dataType: HardType[T], depth: Int, flag: Boolean =
 }
 
 case class WaXpmSyncFifo(config: XPM_FIFO_SYNC_CONFIG) extends Component {
+
+    val sCount = in UInt (config.WR_DATA_COUNT_WIDTH bits)
+    val mCount = in UInt (config.RD_DATA_COUNT_WIDTH bits)
+    val sReady = out Bool()
+    val mReady = out Bool()
     val fifo = FifoSync(config)
-    val dataIn = slave Stream (UInt(config.WRITE_DATA_WIDTH bits))
+    val dataIn = slave Flow(UInt(config.WRITE_DATA_WIDTH bits))
     val rd_en = in Bool()
     rd_en <> fifo.io.rd_en
     val dout = out UInt (config.READ_DATA_WIDTH bits)
     dout <> fifo.io.dout
-    dataIn.ready <> (!(fifo.io.full || fifo.io.wr_rst_busy))
+    // dataIn.ready <> ((!(fifo.io.full || fifo.io.wr_rst_busy)) && sReady)
     dataIn.fire <> fifo.io.wr_en
     dataIn.payload <> fifo.io.din
-    val sCount = in UInt(config.WR_DATA_COUNT_WIDTH bits)
-    val mCount = in UInt(config.RD_DATA_COUNT_WIDTH bits)
-    val sReady = out Bool ()
-    val mReady = out Bool ()
-    when(fifo.io.wr_data_count < sCount) {
+
+    when(fifo.io.wr_data_count + sCount < config.FIFO_WRITE_DEPTH - 10) {
         sReady.set()
     } otherwise {
         sReady.clear()
