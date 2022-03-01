@@ -29,18 +29,20 @@ class Quan(convConfig: ConvConfig) extends Component {
     shift.port.dataIn <> scale.port.dataOut
     shift.port.quan <> io.shiftIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices)
 
-    val leakyRelu = new LeakyRelu(convConfig)
-    leakyRelu.io.dataIn <> shift.port.dataOut
-
     val zero = new Zero(convConfig)
-    when(io.activationEn) {
-        zero.io.dataIn <> leakyRelu.io.dataOut
-    } otherwise {
-        zero.io.dataIn <> shift.port.dataOut
-    }
+    zero.io.dataIn <> shift.port.dataOut
     zero.io.quan <> io.zeroIn
-    zero.io.activationEn <> io.activationEn
-    io.dataOut.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices) <> zero.io.dataOut
+
+    val leakyRelu = new LeakyRelu(convConfig)
+    leakyRelu.io.dataIn <> zero.io.dataOut
+    leakyRelu.io.quanZero <> io.zeroIn
+    when(io.activationEn) {
+        io.dataOut.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices) <> leakyRelu.io.dataOut
+    } otherwise {
+        io.dataOut.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices) <> zero.io.dataOut
+    }
+
+
 }
 //object Quan extends App {
 //    SpinalVerilog(new Quan(ConvConfig(8, 8, 8, 12, 8192, 512, 10, 2048, 1, ConvType.conv33)))
@@ -93,7 +95,7 @@ class Shift(convConfig: ConvConfig) extends Component {
         dataTemp := in >> sh
         val out = Reg(SInt(16 bits))
         when(dataTemp(0)) {
-            out := dataTemp.sign.asSInt @@ (dataTemp(15 downto 1) + 1)
+            out := (dataTemp.sign.asSInt @@ dataTemp(15 downto 1)) + 1
         } otherwise {
             out := dataTemp.sign.asSInt @@ dataTemp(15 downto 1)
         }
@@ -114,7 +116,6 @@ class Zero(convConfig: ConvConfig) extends Component {
     val io = new Bundle {
         val dataIn = in Vec(SInt(16 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
         val quan = in UInt (8 bits)
-        val activationEn = in Bool()
         val dataOut = out Vec(UInt(8 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
     }
     noIoPrefix()
@@ -135,12 +136,8 @@ class Zero(convConfig: ConvConfig) extends Component {
     io.dataOut := normalData
     (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
         when(addZeroTemp(i).sign) {
-            when(io.activationEn) {
-                normalData(i) := io.quan
-            } otherwise {
-                normalData(i) := 0
-            }
-        } elsewhen (addZeroTemp(i) >= 255) {
+            normalData(i) := 0
+        } elsewhen (addZeroTemp(i) > 255) {
             normalData(i) := 255
         } otherwise {
             normalData(i) := addZeroTemp(i).asUInt.resized
