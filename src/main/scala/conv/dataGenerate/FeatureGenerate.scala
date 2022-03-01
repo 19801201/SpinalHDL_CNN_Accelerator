@@ -78,7 +78,7 @@ case class FeatureGenerateFsm(start: Bool) extends Area {
 }
 
 case class GenerateMatrixPort(featureGenerateConfig: FeatureGenerateConfig) extends Bundle {
-    val mData = Vec(master Flow Reg(UInt(featureGenerateConfig.STREAM_DATA_WIDTH bits)), featureGenerateConfig.KERNEL_NUM)
+    val mData = Vec(master Flow UInt(featureGenerateConfig.STREAM_DATA_WIDTH bits), featureGenerateConfig.KERNEL_NUM)
     val ready = in Bool()
 }
 
@@ -138,38 +138,51 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     } otherwise {
         io.sData.ready := False
     }
-    val valid = Vec(Reg(Bool()), featureGenerateConfig.KERNEL_NUM)
-    (0 until featureGenerateConfig.KERNEL_NUM).foreach(i => {
-        io.mData.mData(i).valid := Delay(valid(i) && fsm.currentState === FeatureGenerateEnum.WR, 2)
-    })
+    val valid = Vec(Reg(Bool()) init False, featureGenerateConfig.KERNEL_NUM)
+    //    (0 until featureGenerateConfig.KERNEL_NUM).foreach(i => {
+    //        io.mData.mData(i).valid := Delay(valid(i) && fsm.currentState === FeatureGenerateEnum.WR, 2)
+    //    })
+    io.mData.mData(0).valid := Delay(valid(0) , 3)
+    io.mData.mData(3).valid := Delay(valid(3) , 3)
+    io.mData.mData(6).valid := Delay(valid(6) , 3)
+    io.mData.mData(1).valid := Delay(valid(1) , 2)
+    io.mData.mData(4).valid := Delay(valid(4) , 2)
+    io.mData.mData(7).valid := Delay(valid(7) , 2)
+    io.mData.mData(2).valid := Delay(valid(2) , 1)
+    io.mData.mData(5).valid := Delay(valid(5) , 1)
+    io.mData.mData(8).valid := Delay(valid(8) , 1)
+    when(fsm.currentState === FeatureGenerateEnum.WR){
+        when( columnCnt.count < io.colNumIn - 2) {
+            valid(0) := True
+            valid(3) := True
+            valid(6) := True
+        } otherwise {
+            valid(0) := False
+            valid(3) := False
+            valid(6) := False
+        }
+        when(columnCnt.count > 0 && columnCnt.count < io.colNumIn - 1) {
+            valid(1) := True
+            valid(4) := True
+            valid(7) := True
+        } otherwise {
+            valid(1) := False
+            valid(4) := False
+            valid(7) := False
+        }
+        when(columnCnt.count > 1 && columnCnt.count < io.colNumIn) {
+            valid(2) := True
+            valid(5) := True
+            valid(8) := True
+        } otherwise {
+            valid(2) := False
+            valid(5) := False
+            valid(8) := False
+        }
+    } otherwise{
+        valid.map(_:= False)
+    }
 
-    when(columnCnt.count >= 0 && columnCnt.count < io.colNumIn - 2) {
-        valid(0) := True
-        valid(3) := True
-        valid(6) := True
-    } otherwise {
-        valid(0) := False
-        valid(3) := False
-        valid(6) := False
-    }
-    when(columnCnt.count >= 1 && columnCnt.count < io.colNumIn - 1) {
-        valid(1) := True
-        valid(4) := True
-        valid(7) := True
-    } otherwise {
-        valid(1) := False
-        valid(4) := False
-        valid(7) := False
-    }
-    when(columnCnt.count >= 2 && columnCnt.count < io.colNumIn) {
-        valid(2) := True
-        valid(5) := True
-        valid(8) := True
-    } otherwise {
-        valid(2) := False
-        valid(5) := False
-        valid(8) := False
-    }
     //    io.mData.mData(2).valid := Delay(io.sData.fire && fsm.currentState === FeatureGenerateEnum.WR, 3)
     //    io.mData.mData(5).valid := Delay(io.sData.fire && fsm.currentState === FeatureGenerateEnum.WR, 3)
     //    io.mData.mData(6).valid := Delay(io.sData.fire && fsm.currentState === FeatureGenerateEnum.WR, 3)
@@ -181,15 +194,15 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     //    when()
     io.mData.mData(0).payload := RegNext(io.mData.mData(1).payload)
     io.mData.mData(1).payload := RegNext(io.mData.mData(2).payload)
-    io.mData.mData(2).payload := rdData(1)
+    io.mData.mData(2).payload := RegNext(rdData(1))
 
     io.mData.mData(3).payload := RegNext(io.mData.mData(4).payload)
     io.mData.mData(4).payload := RegNext(io.mData.mData(5).payload)
-    io.mData.mData(5).payload := rdData(0)
+    io.mData.mData(5).payload := RegNext(rdData(0))
 
     io.mData.mData(6).payload := RegNext(io.mData.mData(7).payload)
     io.mData.mData(7).payload := RegNext(io.mData.mData(8).payload)
-    io.mData.mData(8).payload := RegNext(io.sData.payload)
+    io.mData.mData(8).payload := RegNext(RegNext(io.sData.payload))
 
 }
 
