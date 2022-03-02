@@ -75,16 +75,31 @@ class Bias(convConfig: ConvConfig) extends Component {
 
 class Scale(convConfig: ConvConfig) extends Component {
     val port = QuanSubPort(convConfig, 32, 32, 32).setName("Scale")
+    val scaleMulOut = Vec(SInt(33 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
     val scaleMul = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM)(i => {
         def gen = {
-            val mul = Mul(32, 32, 32, MulConfig.signed, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "scaleMul", 63, 32, i == 0)
+            val mul = Mul(32, 32, 33, MulConfig.signed, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "scaleMul", 63, 31, i == 0)
             mul.io.A <> port.dataIn(i)
             mul.io.B <> port.quan(i)
-            mul.io.P <> port.dataOut(i)
+            mul.io.P <> scaleMulOut(i)
         }
 
         gen
     })
+
+    def <<(in: SInt): SInt = {
+        val out = Reg(SInt(32 bits))
+        when(in(0)){
+            out := in(32 downto 1) + 1
+        } otherwise {
+            out := in(32 downto 1)
+        }
+        out
+    }
+    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i=>{
+        port.dataOut(i) := <<(scaleMulOut(i))
+    })
+
 }
 
 class Shift(convConfig: ConvConfig) extends Component {
