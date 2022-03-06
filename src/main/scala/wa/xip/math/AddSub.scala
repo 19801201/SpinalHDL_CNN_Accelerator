@@ -12,17 +12,17 @@ object AddSubConfig {
 class AddSub(A_WIDTH: Int, B_WIDTH: Int, S_WIDTH: Int, A_TYPE: String, B_TYPE: String, clockDomain: ClockDomain, componentName: String)
     extends BlackBox {
     val io = new Bundle {
-        val A = if (A_TYPE == MulConfig.signed) {
+        val A = if (A_TYPE == AddSubConfig.signed) {
             in SInt (A_WIDTH bits)
         } else {
             in UInt (A_WIDTH bits)
         }
-        val B = if (B_TYPE == MulConfig.signed) {
+        val B = if (B_TYPE == AddSubConfig.signed) {
             in SInt (B_WIDTH bits)
         } else {
             in UInt (B_WIDTH bits)
         }
-        val S = if (A_TYPE == MulConfig.signed || B_TYPE == MulConfig.signed) {
+        val S = if (A_TYPE == AddSubConfig.signed || B_TYPE == AddSubConfig.signed) {
             out SInt (S_WIDTH bits)
         } else {
             out UInt (S_WIDTH bits)
