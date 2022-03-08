@@ -22,6 +22,9 @@ object CONV_STATE extends Area {
     val PARA_SIGN = 1
     val COMPUTE_SIGN = 2
     val IDLE_SIGN = 0
+
+    val CONV33 = 0
+    val CONV11 = 1
 }
 
 case class ConvStateFsm(control: Bits, complete: Bits) extends Area {

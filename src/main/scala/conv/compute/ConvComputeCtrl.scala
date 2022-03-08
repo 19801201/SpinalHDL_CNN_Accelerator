@@ -96,6 +96,8 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
 
         val sCount = out UInt (log2Up(convConfig.FEATURE_RAM_DEPTH) bits)
         val mCount = out UInt (log2Up(convConfig.FEATURE_RAM_DEPTH) bits)
+
+        val convType = in Bits (2 bits)
     }
     noIoPrefix()
     //    val computeChannelInTimes = RegNext(io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM))
@@ -108,7 +110,14 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     convComputeCtrlFsm.fifoReady <> io.mDataReady
 
     val initCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.INIT, 3, 7)
-    val channelInTimes = RegNext(io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM))
+    val temp = UInt(convConfig.CHANNEL_WIDTH bits)
+    when(io.convType === CONV_STATE.CONV33) {
+        temp := (io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)).resized
+    } otherwise {
+        temp := (io.channelIn >> (log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM) + 3)).resized
+    }
+    val channelInTimes = RegNext(temp)
+
     val channelOutTimes = RegNext(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM))
     val channelInCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE, convConfig.CHANNEL_WIDTH, channelInTimes - 1)
     val channelOutCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.valid, convConfig.CHANNEL_WIDTH, channelOutTimes - 1)

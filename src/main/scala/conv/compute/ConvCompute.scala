@@ -27,9 +27,16 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val zeroNum = in UInt (convConfig.dataGenerateConfig.paddingConfig.ZERO_NUM_WIDTH bits)
         val weightNum = in UInt (log2Up(convConfig.WEIGHT_S_DATA_DEPTH) bits)
         val quanNum = in UInt (log2Up(convConfig.QUAN_S_DATA_DEPTH) bits)
-        val quanZeroData = in UInt(8 bits)
+        val quanZeroData = in UInt (8 bits)
+
+        val convType = in Bits (2 bits)
     }
     noIoPrefix()
+
+    val convType = Reg(Bits(2 bits))
+    when(io.startPa) {
+        convType := io.convType
+    }
 
     val dataGenerate = new DataGenerate(convConfig.dataGenerateConfig)
     dataGenerate.io.sData <> io.sFeatureData
@@ -40,7 +47,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     dataGenerate.io.zeroDara <> io.zeroDara
     dataGenerate.io.zeroNum <> io.zeroNum
     dataGenerate.io.enPadding <> io.enPadding
-
+    dataGenerate.io.convType <> convType
 
     val computeCtrl = ConvComputeCtrl(convConfig)
     computeCtrl.io.start <> io.startCu
@@ -49,10 +56,13 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     computeCtrl.io.channelIn <> io.channelIn
     computeCtrl.io.channelOut <> io.channelOut
     computeCtrl.io.activationEn <> io.enActivation
+
     /** *********************************************************** */
     computeCtrl.io.mDataReady <> io.mFeatureData.ready
     computeCtrl.io.mDataValid <> io.mFeatureData.valid
+
     /** *********************************************************** */
+    computeCtrl.io.convType <> convType
 
     val loadWeight = LoadWeight(convConfig)
     loadWeight.io.sData <> io.sParaData
@@ -63,6 +73,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     loadWeight.io.copyWeightDone <> io.copyWeightDone
     loadWeight.io.weightNum <> io.weightNum
     loadWeight.io.quanNum <> io.quanNum
+    loadWeight.io.convType <> io.convType
 
     /** ******************************************************************* */
     loadWeight.io.shiftRead.addr := computeCtrl.io.shiftReadAddr
@@ -81,9 +92,9 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
             if (convConfig.KERNEL_NUM == 9) {
                 fifo.dataIn <> dataGenerate.io.mData.mData(i)
             }
-                //            else {
-//                fifo.dataIn <> io.sFeatureData
-//            }
+            //            else {
+            //                fifo.dataIn <> io.sFeatureData
+            //            }
             //fifo.io.pop.valid <> computeCtrl.io.featureMemWriteValid
             fifo.rd_en <> computeCtrl.io.featureMemWriteReady
             fifo.sCount <> computeCtrl.io.sCount.resized
@@ -107,8 +118,8 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
             //            featureMemOutData(i) := mem.io.doutb.asUInt
             //            mem.io.addrb <> computeCtrl.io.featureMemReadAddr.asBits
             //            mem.io.enb <> True
-            val mem = new Mem(UInt(convConfig.FEATURE_S_DATA_WIDTH bits),wordCount = convConfig.FEATURE_MEM_DEPTH)
-            mem.write(computeCtrl.io.featureMemWriteAddr,featureFifo(i).dout,featureFifo(i).rd_en)
+            val mem = new Mem(UInt(convConfig.FEATURE_S_DATA_WIDTH bits), wordCount = convConfig.FEATURE_MEM_DEPTH)
+            mem.write(computeCtrl.io.featureMemWriteAddr, featureFifo(i).dout, featureFifo(i).rd_en)
             featureMemOutData(i) := mem.readAsync(computeCtrl.io.featureMemReadAddr)
             mem
         }

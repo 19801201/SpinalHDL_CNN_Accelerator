@@ -12,11 +12,12 @@ case class WeightReadPort[T <: Data](dataType: HardType[T], depth: Int) extends 
 }
 
 object LoadWeightEnum extends SpinalEnum(defaultEncoding = binaryOneHot) {
-    val IDLE, COPY_WEIGHT, COPY_BIAS, COPY_SCALE, COPY_SHIFT = newElement
+    val IDLE, INIT, COPY_WEIGHT, COPY_BIAS, COPY_SCALE, COPY_SHIFT = newElement
 }
 
 case class LoadWeightFsm(start: Bool) extends Area {
 
+    val initEnd = Bool()
     val copyWeightEnd = Bool()
     val copyBiasEnd = Bool()
     val copyScaleEnd = Bool()
@@ -28,9 +29,16 @@ case class LoadWeightFsm(start: Bool) extends Area {
     switch(currentState) {
         is(LoadWeightEnum.IDLE) {
             when(start) {
-                nextState := LoadWeightEnum.COPY_WEIGHT
+                nextState := LoadWeightEnum.INIT
             } otherwise {
                 nextState := LoadWeightEnum.IDLE
+            }
+        }
+        is(LoadWeightEnum.INIT) {
+            when(initEnd) {
+                nextState := LoadWeightEnum.COPY_WEIGHT
+            } otherwise {
+                nextState := LoadWeightEnum.INIT
             }
         }
         is(LoadWeightEnum.COPY_WEIGHT) {
@@ -75,13 +83,29 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
         val scaleRead = WeightReadPort(UInt(convConfig.QUAN_M_DATA_WIDTH bits), convConfig.QUAN_M_DATA_DEPTH)
         val shiftRead = WeightReadPort(UInt(convConfig.QUAN_M_DATA_WIDTH bits), convConfig.QUAN_M_DATA_DEPTH)
         val copyWeightDone = out Bool()
+        val convType = in Bits(2 bits)
 
     }
     noIoPrefix()
 
+
+    val convType = Reg(Bits(2 bits))
+    when(io.start){
+        convType := io.convType
+    }
+
+    val copyWeightTi = UInt(convConfig.KERNEL_NUM.toBinaryString.length bits)
+    when(convType === CONV_STATE.CONV33){
+        copyWeightTi := 9
+    } otherwise{
+        copyWeightTi := 8
+    }
+
     val fsm = LoadWeightFsm(io.start)
+    val init = WaCounter(fsm.currentState === LoadWeightEnum.INIT, log2Up(5), 5)
+    fsm.initEnd := init.valid
     val copyWeightCnt = WaCounter(fsm.currentState === LoadWeightEnum.COPY_WEIGHT && io.sData.fire, log2Up(convConfig.WEIGHT_S_DATA_DEPTH), io.weightNum - 1)
-    val copyWeightTimes = WaCounter(copyWeightCnt.valid, convConfig.KERNEL_NUM.toBinaryString.length, convConfig.KERNEL_NUM - 1)
+    val copyWeightTimes = WaCounter(copyWeightCnt.valid, convConfig.KERNEL_NUM.toBinaryString.length, copyWeightTi - 1)
     fsm.copyWeightEnd := copyWeightCnt.valid && copyWeightTimes.valid
 
     when(fsm.currentState === LoadWeightEnum.COPY_WEIGHT || fsm.currentState === LoadWeightEnum.COPY_SHIFT || fsm.currentState === LoadWeightEnum.COPY_BIAS || fsm.currentState === LoadWeightEnum.COPY_SCALE) {

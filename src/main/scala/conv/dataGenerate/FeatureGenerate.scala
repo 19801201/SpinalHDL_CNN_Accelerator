@@ -77,15 +77,15 @@ case class FeatureGenerateFsm(start: Bool) extends Area {
 
 }
 
-case class GenerateMatrixPort(featureGenerateConfig: FeatureGenerateConfig) extends Bundle {
-    val mData = Vec(master Flow UInt(featureGenerateConfig.STREAM_DATA_WIDTH bits), featureGenerateConfig.KERNEL_NUM)
+case class GenerateMatrixPort(dataWidth:Int,kernelNum:Int) extends Bundle {
+    val mData = Vec(master Flow UInt(dataWidth bits), kernelNum)
     val ready = in Bool()
 }
 
 class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Component {
     val io = new Bundle {
         val sData = slave Stream UInt(featureGenerateConfig.STREAM_DATA_WIDTH bits)
-        val mData = GenerateMatrixPort(featureGenerateConfig)
+        val mData = GenerateMatrixPort(featureGenerateConfig.STREAM_DATA_WIDTH,featureGenerateConfig.KERNEL_NUM)
         val rowNumIn = in UInt (featureGenerateConfig.FEATURE_WIDTH bits)
         val colNumIn = in UInt (featureGenerateConfig.FEATURE_WIDTH bits)
         val start = in Bool()
