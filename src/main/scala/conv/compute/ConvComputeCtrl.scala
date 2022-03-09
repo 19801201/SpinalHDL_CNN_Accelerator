@@ -168,7 +168,7 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     //这个值有待测试其他情况
     val normDelayCount = 2 + 3 + 4 + log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)
     val biasDelayCount = normDelayCount - 1
-    val scaleDealyCount = 4
+    val scaleDealyCount = 3
     val shiftDealyCount = 1
     val activationDealyCount = 7
     val mValidDelayCountActivation = normDelayCount + 1 + scaleDealyCount + shiftDealyCount + activationDealyCount + 2
@@ -185,8 +185,12 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     val biasAddrCnt = WaCounter(normValidTempQ(biasDelayCount), log2Up(convConfig.QUAN_M_DATA_DEPTH), channelOutTimes - 1)
     io.biasReadAddr := biasAddrCnt.count
     val quanDelayTemp = History(io.biasReadAddr, shiftDealyCount + scaleDealyCount + 1)
-    io.scaleReadAddr := quanDelayTemp(scaleDealyCount)
-    io.shiftReadAddr := quanDelayTemp(shiftDealyCount + scaleDealyCount)
+//    io.scaleReadAddr := quanDelayTemp(scaleDealyCount)
+//    io.shiftReadAddr := quanDelayTemp(shiftDealyCount + scaleDealyCount)
+//    io.scaleReadAddr := quanDelayTemp(1)
+//    io.shiftReadAddr := quanDelayTemp(1 + scaleDealyCount)
+    io.scaleReadAddr := biasAddrCnt.count
+    io.shiftReadAddr := biasAddrCnt.count
     when(io.activationEn) {
         io.mDataValid := normValidTempQ(mValidDelayCountActivation)
     } otherwise {

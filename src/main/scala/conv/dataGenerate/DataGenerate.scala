@@ -40,6 +40,7 @@ class DataGenerate(dataGenerateConfig: DataGenerateConfig) extends Component {
 
     featureWidthConvert.io.channelIn <> io.channelIn
     featureWidthConvert.io.colNumIn <> io.colNumIn
+    featureWidthConvert.io.rowNumIn <> io.rowNumIn
     when(io.convType === CONV_STATE.CONV33) {
         padding.io.sData <> io.sData
         padding.io.start <> io.start
@@ -47,9 +48,13 @@ class DataGenerate(dataGenerateConfig: DataGenerateConfig) extends Component {
         featureWidthConvert.io.sData.valid := False
         featureWidthConvert.io.sData.payload := 0
         featureWidthConvert.io.mData.ready := False
+        featureWidthConvert.io.start := False
+
     } otherwise {
         featureWidthConvert.io.sData <> io.sData
         featureWidthConvert.io.mData <> io.mData
+        featureWidthConvert.io.start <> io.start
+
         featureGenerate.io.mData.ready := False
         padding.io.start <> False
         padding.io.sData.valid := False

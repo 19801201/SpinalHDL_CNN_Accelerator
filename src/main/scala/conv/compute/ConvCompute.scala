@@ -74,6 +74,8 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     loadWeight.io.weightNum <> io.weightNum
     loadWeight.io.quanNum <> io.quanNum
     loadWeight.io.convType <> io.convType
+    loadWeight.io.channelIn <> io.channelIn
+    loadWeight.io.channelOut <> io.channelOut
 
     /** ******************************************************************* */
     loadWeight.io.shiftRead.addr := computeCtrl.io.shiftReadAddr

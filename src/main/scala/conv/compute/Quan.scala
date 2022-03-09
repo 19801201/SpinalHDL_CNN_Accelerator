@@ -23,11 +23,11 @@ class Quan(convConfig: ConvConfig) extends Component {
 
     val scale = new Scale(convConfig)
     scale.port.dataIn <> bias.port.dataOut
-    scale.port.quan <> io.scaleIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices)
+    scale.port.quan <> Delay(io.scaleIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 1)
 
     val shift = new Shift(convConfig)
     shift.port.dataIn <> scale.port.dataOut
-    shift.port.quan <> io.shiftIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices)
+    shift.port.quan <> Delay(io.shiftIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 4)
 
     val zero = new Zero(convConfig)
     zero.io.dataIn <> shift.port.dataOut
@@ -75,10 +75,10 @@ class Bias(convConfig: ConvConfig) extends Component {
 
 class Scale(convConfig: ConvConfig) extends Component {
     val port = QuanSubPort(convConfig, 32, 32, 32).setName("Scale")
-    val scaleMulOut = Vec(SInt(33 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
+    val scaleMulOut = Vec(SInt(32 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
     val scaleMul = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM)(i => {
         def gen = {
-            val mul = Mul(32, 32, 33, MulConfig.signed, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "scaleMul", 63, 31, i == 0)
+            val mul = Mul(32, 32, 32, MulConfig.signed, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "scaleMul", 63, 32, i == 0)
             mul.io.A <> port.dataIn(i)
             mul.io.B <> port.quan(i)
             mul.io.P <> scaleMulOut(i)
@@ -87,17 +87,17 @@ class Scale(convConfig: ConvConfig) extends Component {
         gen
     })
 
-    def <<(in: SInt): SInt = {
-        val out = Reg(SInt(32 bits))
-        when(in(0)){
-            out := in(32 downto 1) + 1
-        } otherwise {
-            out := in(32 downto 1)
-        }
-        out
-    }
-    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i=>{
-        port.dataOut(i) := <<(scaleMulOut(i))
+    //    def <<(in: SInt): SInt = {
+    //        val out = Reg(SInt(32 bits))
+    //        when(in(0)){
+    //            out := in(32 downto 1) + 1
+    //        } otherwise {
+    //            out := in(32 downto 1)
+    //        }
+    //        out
+    //    }
+    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
+        port.dataOut(i) := (scaleMulOut(i))
     })
 
 }
