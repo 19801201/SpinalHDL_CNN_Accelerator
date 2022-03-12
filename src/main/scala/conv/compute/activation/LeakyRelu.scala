@@ -14,7 +14,7 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
     noIoPrefix()
 
     val leaky = U((convConfig.leakyRatio * scala.math.pow(2, 17)).toInt, 16 bits)
-   // val midHigh = U((0.501 * scala.math.pow(2, 17)).toInt, 17 bits)
+    // val midHigh = U((0.501 * scala.math.pow(2, 17)).toInt, 17 bits)
     val midLow = U((0.5 * scala.math.pow(2, 17)).toInt, 17 bits)
 
     def <<(in: UInt, genTcl: Boolean): UInt = {
@@ -37,7 +37,20 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
         mul.io.B <> leaky
         mul.io.P <> mulTemp
 
+        //        val isFive = Bool()
+        //        switch(subOut) {
+        //            (0 until 10).foreach(i => {
+        //                is(-10 * i - 5) {
+        //                    isFive := True
+        //                }
+        //                default {
+        //                    isFive := False
+        //                }
+        //            })
+        //        }
+
         val srcTemp = Delay(subOut, 3)
+
         //        when(!srcTemp.sign) {
         //            mulOut := srcTemp
         //        } otherwise {
@@ -53,6 +66,7 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
         //                }
         //            }
         //        }
+        //3*3更优
         when(!srcTemp.sign) {
             mulOut := srcTemp
         } otherwise {
@@ -62,6 +76,25 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
                 mulOut := odd.resized
             }
         }
+
+
+        //1*1更优
+        //        val isFiveDelay = Delay(isFive, 3)
+        //        when(!srcTemp.sign) {
+        //            mulOut := srcTemp
+        //        } elsewhen (isFiveDelay) {
+        //            when(mulTemp(17)) {
+        //                mulOut := odd.resized
+        //            } otherwise {
+        //                mulOut := even.resized
+        //            }
+        //        } otherwise {
+        //            when(mantissa.asUInt < midLow) {
+        //                mulOut := even.resized
+        //            } otherwise {
+        //                mulOut := odd.resized
+        //            }
+        //        }
 
         val addZ3Out = SInt(16 bits)
         val addZ3 = AddSub(16, 8, 16, AddSubConfig.signed, AddSubConfig.unsigned, 1, AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "leakyAddZ3", genTcl)

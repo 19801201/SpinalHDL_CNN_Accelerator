@@ -9,7 +9,7 @@ case class XPM_FIFO_SYNC_CONFIG(memoryType:String,readLatency:Int,readMode:Strin
     val ECC_MODE = "no_ecc"
     val FIFO_MEMORY_TYPE = memoryType
     val READ_MODE = readMode
-    val FIFO_READ_LATENCY = if(readMode==FIFO_READ_MODE.fwft) 1 else readLatency
+    val FIFO_READ_LATENCY = if(readMode==FIFO_READ_MODE.fwft) 0 else readLatency
     val FIFO_WRITE_DEPTH = writeDepth
     val FULL_RESET_VALUE = 0
     val READ_DATA_WIDTH = readWidth
