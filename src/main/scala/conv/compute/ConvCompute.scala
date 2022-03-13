@@ -14,7 +14,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val sParaData = slave Stream UInt(convConfig.WEIGHT_S_DATA_WIDTH bits)
         val sFeatureData = slave Stream UInt(convConfig.FEATURE_S_DATA_WIDTH bits)
         val mFeatureData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits)
-        val mNormData = master(Stream(Vec(SInt(convConfig.addChannelTimesWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM))) //调试使用
+        //val mNormData = master(Stream(Vec(SInt(convConfig.addChannelTimesWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM))) //调试使用
         val copyWeightDone = out Bool()
 
         val rowNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
@@ -180,10 +180,10 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     }
 
     /** ************************************************************** */
-    io.mNormData.valid <> computeCtrl.io.normValid
-    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
-        io.mNormData.payload(i) <> addChannelTimesData(i)
-    })
+//    io.mNormData.valid <> computeCtrl.io.normValid
+//    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
+//        io.mNormData.payload(i) <> addChannelTimesData(i)
+//    })
 
     /** ************************************************************** */
 

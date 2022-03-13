@@ -25,6 +25,21 @@ object CONV_STATE extends Area {
 
     val CONV33 = 0
     val CONV11 = 1
+
+    def ROW_NUM_IN = 10 downto 0
+    def COL_NUM_IN = 21 downto 11
+    def CHANNEL_IN = 31 downto 22
+    def CANNEL_OUT = 41 downto 32
+    def EN_PADDING = 42 downto 42
+    def EN_ACTIVATION = 43 downto 43
+    def Z1 = 51 downto 44
+    def Z1_NUM = 54 downto 52
+    def Z3 = 62 downto 55
+    def CONV_TYPE = 64 downto 63
+
+    def WEIGHT_NUM = 14 downto 0
+    def QUAN_NUM = 22 downto 15
+
 }
 
 case class ConvStateFsm(control: Bits, complete: Bits) extends Area {
