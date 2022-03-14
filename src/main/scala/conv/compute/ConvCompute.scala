@@ -3,6 +3,7 @@ package conv.compute
 import conv.dataGenerate.DataGenerate
 import spinal.core._
 import spinal.lib._
+import wa.xip.math.DSP
 import wa.xip.memory.xpm.{FIFO_READ_MODE, MEM_TYPE, XPM_FIFO_SYNC_CONFIG}
 import wa.{WaXpmSyncFifo, xAdd, xMul}
 
@@ -14,7 +15,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val sParaData = slave Stream UInt(convConfig.WEIGHT_S_DATA_WIDTH bits)
         val sFeatureData = slave Stream UInt(convConfig.FEATURE_S_DATA_WIDTH bits)
         val mFeatureData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits)
-        //val mNormData = master(Stream(Vec(SInt(convConfig.addChannelTimesWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM))) //调试使用
+        val mNormData = master(Stream(Vec(SInt(convConfig.addChannelTimesWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM))) //调试使用
         val copyWeightDone = out Bool()
 
         val rowNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
@@ -131,10 +132,16 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     val mulFeatureWeightData = Vec(Vec(Vec(UInt(convConfig.mulWeightWidth bits), convConfig.COMPUTE_CHANNEL_IN_NUM), convConfig.COMPUTE_CHANNEL_OUT_NUM / 2), convConfig.KERNEL_NUM)
     val mulFeatureWeight = Array.tabulate(convConfig.KERNEL_NUM, convConfig.COMPUTE_CHANNEL_OUT_NUM / 2, convConfig.COMPUTE_CHANNEL_IN_NUM)((i, j, k) => {
         def gen = {
-            val mul = xMul(24, 8, convConfig.mulWeightWidth)
-            mul.io.A <> loadWeight.io.weightRead(i).data(((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8) @@ U"8'd0" @@ loadWeight.io.weightRead(i).data(((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
-            mul.io.B <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
-            mul.io.P <> mulFeatureWeightData(i)(j)(k)
+            //提供了两种方式，第二种直接调用DSP IP，节省了资源
+//            val mul = xMul(24, 8, convConfig.mulWeightWidth)
+//            mul.io.A <> loadWeight.io.weightRead(i).data(((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8) @@ U"8'd0" @@ loadWeight.io.weightRead(i).data(((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
+//            mul.io.B <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
+//            mul.io.P <> mulFeatureWeightData(i)(j)(k)
+            val mul = DSP("mulWeight",i==0)
+            mul.a <> loadWeight.io.weightRead(i).data(((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
+            mul.d <> loadWeight.io.weightRead(i).data(((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
+            mul.b <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
+            mul.p <> mulFeatureWeightData(i)(j)(k)
         }
 
         gen
@@ -180,10 +187,10 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     }
 
     /** ************************************************************** */
-//    io.mNormData.valid <> computeCtrl.io.normValid
-//    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
-//        io.mNormData.payload(i) <> addChannelTimesData(i)
-//    })
+    io.mNormData.valid <> computeCtrl.io.normValid
+    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
+        io.mNormData.payload(i) <> addChannelTimesData(i)
+    })
 
     /** ************************************************************** */
 
