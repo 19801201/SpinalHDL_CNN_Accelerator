@@ -16,10 +16,11 @@ object ConvType {
  * @param COMPUTE_CHANNEL_OUT_NUM 一次可计算的卷积核数量
  * @param MAX_CHANNEL_IN          支持的最大的卷积核通道数
  * @param MAX_CHANNEL_OUT         支持的最大的卷积核数量
- * @param CONV_TYPE               卷积类型
  *
  */
-case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHANNEL_OUT_NUM: Int, CHANNEL_WIDTH: Int, WEIGHT_DEPTH: Int, QUAN_DEPTH: Int, FEATURE: Int, FEATURE_RAM_DEPTH: Int, ZERO_NUM: Int, CONV_TYPE: String = ConvType.conv33) {
+case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHANNEL_OUT_NUM: Int, CHANNEL_WIDTH: Int, WEIGHT_DEPTH: Int, QUAN_DEPTH: Int, FEATURE: Int, FEATURE_RAM_DEPTH: Int, ZERO_NUM: Int) {
+    //conv_typy由io控制，这里按conv33生成配置，conv11复用conv33资源
+    val CONV_TYPE: String = ConvType.conv33
     require(CONV_TYPE == ConvType.conv33 || CONV_TYPE == ConvType.conv11, "CONV_TYPE只支持conv33和conv11类型")
     val KERNEL_NUM = CONV_TYPE match {
         case ConvType.conv33 => 9

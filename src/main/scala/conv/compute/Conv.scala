@@ -105,6 +105,6 @@ class Conv(convConfig: ConvConfig) extends Component {
 
 object Conv {
     def main(args: Array[String]): Unit = {
-        SpinalVerilog(new Conv(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1, ConvType.conv33)))
+        SpinalConfig(removePruned = true).generateVerilog(new Conv(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1)))
     }
 }

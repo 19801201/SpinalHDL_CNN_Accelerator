@@ -206,5 +206,5 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
 }
 
 object ConvCompute extends App {
-    SpinalVerilog(new ConvCompute(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1, ConvType.conv33)))
+    SpinalVerilog(new ConvCompute(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1)))
 }

@@ -119,5 +119,5 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
 }
 
 object LeakyRelu extends App {
-    SpinalVerilog(new LeakyRelu(ConvConfig(8, 8, 8, 12, 8192, 512, 10, 2048, 1, ConvType.conv33)))
+    SpinalVerilog(new LeakyRelu(ConvConfig(8, 8, 8, 12, 8192, 512, 10, 2048, 1)))
 }
