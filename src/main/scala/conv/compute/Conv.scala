@@ -53,7 +53,7 @@ class Conv(convConfig: ConvConfig) extends Component {
     convCompute.io.startCu := Delay(compute, 3)
 
     convCompute.io.channelIn := computeInstructionReg(CONV_STATE.CHANNEL_IN).asUInt.resized
-    convCompute.io.channelOut := computeInstructionReg(CONV_STATE.CANNEL_OUT).asUInt.resized
+    convCompute.io.channelOut := computeInstructionReg(CONV_STATE.CHANNEL_OUT).asUInt.resized
     convCompute.io.rowNumIn := computeInstructionReg(CONV_STATE.ROW_NUM_IN).asUInt.resized
     convCompute.io.colNumIn := computeInstructionReg(CONV_STATE.COL_NUM_IN).asUInt.resized
     convCompute.io.enPadding := computeInstructionReg(CONV_STATE.EN_PADDING).asBool
