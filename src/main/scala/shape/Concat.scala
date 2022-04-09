@@ -16,8 +16,8 @@ class Concat(concatConfig: ConcatConfig) extends Component {
 
     val dataPort = ShapePort(concatConfig.STREAM_DATA_WIDTH, concatConfig.FEATURE_WIDTH, concatConfig.CHANNEL_WIDTH)
     noIoPrefix()
-    val zero = in SInt (32 bits)
-    val zero1 = in SInt (32 bits)
+    val zero = in UInt (32 bits)
+    val zero1 = in UInt (32 bits)
     val scale = in UInt (32 bits)
     val scale1 = in UInt (32 bits)
 
@@ -57,11 +57,11 @@ class Concat(concatConfig: ConcatConfig) extends Component {
     val concatScale = ConcatScale(concatConfig)
     val scaleTemp = UInt(32 bits)
     when(dataPort.sData.fire) {
-        concatZero.io.dataIn <> dataPort.sData.payload
+        concatZero.io.dataIn <> dataPort.sData.payload.asSInt
         concatZero.io.zero <> zero
         scaleTemp := scale
     } elsewhen (sData1.fire) {
-        concatZero.io.dataIn <> sData1.payload
+        concatZero.io.dataIn <> sData1.payload.asSInt
         concatZero.io.zero <> zero1
         scaleTemp := scale1
     } otherwise {
@@ -78,8 +78,8 @@ class Concat(concatConfig: ConcatConfig) extends Component {
 case class ConcatZero(concatConfig: ConcatConfig) extends Component {
 
     val io = new Bundle {
-        val dataIn = in UInt (concatConfig.STREAM_DATA_WIDTH bits)
-        val zero = in SInt (32 bits)
+        val dataIn = in SInt (concatConfig.STREAM_DATA_WIDTH bits)
+        val zero = in UInt (32 bits)
         val dataOut = out Vec(SInt(32 bits), concatConfig.COMPUTE_CHANNEL_NUM)
     }
     noIoPrefix()
@@ -88,8 +88,8 @@ case class ConcatZero(concatConfig: ConcatConfig) extends Component {
 
     val add = Array.tabulate(concatConfig.COMPUTE_CHANNEL_NUM)(i => {
         def gen = {
-            val addZero = AddSub(32, 32, 32, AddSubConfig.unsigned, AddSubConfig.signed, 2, AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "concatAdd", i == 0)
-            addZero.io.A <> U"8'd0" @@ dataInTemp(i) @@ U"16'd0"
+            val addZero = AddSub(32, 32, 32, AddSubConfig.signed, AddSubConfig.unsigned, 2, AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "concatAdd", i == 0)
+            addZero.io.A <> S"8'd0" @@ dataInTemp(i) @@ S"16'd0"
             addZero.io.B <> io.zero
             addZero.io.S <> io.dataOut(i)
             addZero

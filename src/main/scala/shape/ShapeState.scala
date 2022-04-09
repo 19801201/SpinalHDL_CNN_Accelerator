@@ -21,19 +21,19 @@ object Control {
     val IRQ = 15
 }
 
-object Complete {
-    val IDLE = 0
-    val MAX_POOLING = 1
-    val SPLIT = 2
-    val UP_SAMPLING = 3
-    val CONCAT = 4
-}
+//object Complete {
+//    val IDLE = 0
+//    val MAX_POOLING = 1
+//    val SPLIT = 2
+//    val UP_SAMPLING = 3
+//    val CONCAT = 4
+//}
 
 object ShapeStateEnum extends SpinalEnum(defaultEncoding = binaryOneHot) {
     val IDLE, MAX_POOLING, SPLIT, UP_SAMPLING, CONCAT, IRQ = newElement
 }
 
-case class ShapeStateFsm(control: Bits, complete: Bits) extends Area {
+case class ShapeStateFsm(control: Bits, complete: Bool) extends Area {
     val currentState = Reg(ShapeStateEnum()) init ShapeStateEnum.IDLE
     val nextState = ShapeStateEnum()
     currentState := nextState
@@ -58,28 +58,28 @@ case class ShapeStateFsm(control: Bits, complete: Bits) extends Area {
             }
         }
         is(ShapeStateEnum.MAX_POOLING) {
-            when(complete === Complete.MAX_POOLING) {
+            when(complete) {
                 nextState := ShapeStateEnum.IRQ
             } otherwise {
                 nextState := ShapeStateEnum.MAX_POOLING
             }
         }
         is(ShapeStateEnum.SPLIT) {
-            when(complete === Complete.SPLIT) {
+            when(complete) {
                 nextState := ShapeStateEnum.IRQ
             } otherwise {
                 nextState := ShapeStateEnum.SPLIT
             }
         }
         is(ShapeStateEnum.UP_SAMPLING) {
-            when(complete === Complete.UP_SAMPLING) {
+            when(complete) {
                 nextState := ShapeStateEnum.IRQ
             } otherwise {
                 nextState := ShapeStateEnum.UP_SAMPLING
             }
         }
         is(ShapeStateEnum.CONCAT) {
-            when(complete === Complete.CONCAT) {
+            when(complete) {
                 nextState := ShapeStateEnum.IRQ
             } otherwise {
                 nextState := ShapeStateEnum.CONCAT
@@ -102,10 +102,28 @@ object Start {
     val CONCAT = 3
 }
 
+object Instruction {
+    def ROW_NUM_IN = 10 downto 0
+
+    def COL_NUM_IN = 21 downto 11
+
+    def CHANNEL_IN = 31 downto 22
+
+    def CHANNEL_IN1 = 41 downto 32
+
+    def SCALE = 95 downto 64
+
+    def SCALE1 = 127 downto 96
+
+    def ZERO = 159 downto 128
+
+    def ZERO1 = 191 downto 160
+}
+
 class ShapeState extends Component {
     val io = new Bundle {
         val control = in Bits (4 bits)
-        val complete = in Bits (4 bits)
+        val complete = in Bool()
         val state = out(Reg(Bits(4 bits)))
         val start = out(Vec(Reg(Bool()) init False, 4))
         val dmaReadValid = out Vec(Bool(), 2)

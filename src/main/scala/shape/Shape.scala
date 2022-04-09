@@ -23,6 +23,7 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
         val control = in Bits (4 bits)
         val state = out Bits (4 bits)
         val introut = in Bool()
+        val instruction = in Vec(Bits(32 bits), 6)
     }
     noIoPrefix()
 
@@ -32,16 +33,146 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     shapeState.io.control <> io.control
     shapeState.io.state <> io.state
 
-    val concat = new Concat(shapeConfig.concatConfig)
+    shapeState.io.complete <> io.introut
 
     val start = shapeState.io.start.map(_.rise()).reduce(_ || _)
+    val instruction = io.instruction.reverse.reduceRight(_ ## _)
+    val instructionReg = Reg(Bits(instruction.getWidth bits)) init 0
+    when(start) {
+        instructionReg := instruction
+    }
 
 
+    val fifoReady = Bool()
+
+    val concat = new Concat(shapeConfig.concatConfig)
+    concat.dataPort.start <> shapeState.io.start(Start.CONCAT)
+    concat.dataPort.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
+    concat.dataPort.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
+    concat.dataPort.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
+    concat.channelIn1 <> instructionReg(Instruction.CHANNEL_IN1).asUInt.resized
+    concat.zero <> instructionReg(Instruction.ZERO).asUInt.resized
+    concat.scale <> instructionReg(Instruction.SCALE).asUInt.resized
+    concat.zero1 <> instructionReg(Instruction.ZERO1).asUInt.resized
+    concat.scale1 <> instructionReg(Instruction.SCALE1).asUInt.resized
+    concat.dataPort.fifoReady <> fifoReady
+
+    val maxPooling = new MaxPooling(shapeConfig.maxPoolingConfig)
+    maxPooling.io.start <> shapeState.io.start(Start.MAX_POOLING)
+    maxPooling.io.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
+    maxPooling.io.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
+    maxPooling.io.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
+    maxPooling.io.fifoReady <> fifoReady
+
+    val split = new Split(shapeConfig.splitConfig)
+    split.io.start <> shapeState.io.start(Start.SPLIT)
+    split.io.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
+    split.io.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
+    split.io.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
+    split.io.fifoReady <> fifoReady
+
+    val upSampling = new UpSampling(shapeConfig.upSamplingConfig)
+    upSampling.io.start <> shapeState.io.start(Start.UP_SAMPLING)
+    upSampling.io.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
+    upSampling.io.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
+    upSampling.io.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
+    upSampling.io.fifoReady <> fifoReady
+
+
+    val dataCount1 = RegNext((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt * instructionReg(Instruction.COL_NUM_IN).asUInt)
+    val dataCount2 = RegNext(dataCount1 << 1)
+    val dataCount = UInt(dataCount2.getWidth bits)
 
     val fifo = StreamFifo(UInt(shapeConfig.STREAM_DATA_WIDTH bits), shapeConfig.ROW_MEM_DEPTH << 1)
     fifo.io.pop <> io.mData
+
+    when(fifo.io.availability > dataCount) {
+        fifoReady := True
+    } otherwise {
+        fifoReady := False
+    }
+
+    switch(shapeState.io.state) {
+        is(State.CONCAT) {
+            io.sData(0) <> concat.dataPort.sData
+            io.sData(1) <> concat.sData1
+            fifo.io.push <> concat.dataPort.mData
+            dataCount := dataCount2
+            clearS(maxPooling.io.sData)
+            clearS(split.io.sData)
+            clearS(upSampling.io.sData)
+            clearM(maxPooling.io.mData)
+            clearM(upSampling.io.mData)
+            clearM(split.io.mData)
+        }
+        is(State.MAX_POOLING) {
+            io.sData(0) <> maxPooling.io.sData
+            io.sData(1).ready <> False
+            fifo.io.push <> maxPooling.io.mData
+            dataCount := dataCount1.resized
+            clearS(concat.sData1)
+            clearS(concat.dataPort.sData)
+            clearS(split.io.sData)
+            clearS(upSampling.io.sData)
+            clearM(concat.dataPort.mData)
+            clearM(upSampling.io.mData)
+            clearM(split.io.mData)
+        }
+        is(State.UP_SAMPLING) {
+            io.sData(0) <> upSampling.io.sData
+            io.sData(1).ready <> False
+            fifo.io.push <> upSampling.io.mData
+            dataCount := dataCount2
+            clearS(concat.sData1)
+            clearS(concat.dataPort.sData)
+            clearS(maxPooling.io.sData)
+            clearS(split.io.sData)
+            clearM(concat.dataPort.mData)
+            clearM(maxPooling.io.mData)
+            clearM(split.io.mData)
+        }
+        is(State.SPLIT) {
+            io.sData(0) <> split.io.sData
+            io.sData(1).ready <> False
+            fifo.io.push <> split.io.mData
+            dataCount := dataCount1.resized
+            clearS(concat.sData1)
+            clearS(concat.dataPort.sData)
+            clearS(maxPooling.io.sData)
+            clearS(upSampling.io.sData)
+            clearM(concat.dataPort.mData)
+            clearM(maxPooling.io.mData)
+            clearM(upSampling.io.mData)
+        }
+        default {
+            io.sData(0).ready := False
+            io.sData(1).ready := False
+            dataCount := 0
+            clearS(concat.sData1)
+            clearS(concat.dataPort.sData)
+            clearS(maxPooling.io.sData)
+            clearS(split.io.sData)
+            clearS(upSampling.io.sData)
+            clearS(fifo.io.push)
+//            fifo.io.push.valid := False
+//            fifo.io.push.payload := 0
+            clearM(concat.dataPort.mData)
+            clearM(maxPooling.io.mData)
+            clearM(upSampling.io.mData)
+            clearM(split.io.mData)
+        }
+    }
+
+    def clearS(s: Stream[UInt]): Unit = {
+        s.payload := 0
+        s.valid := False
+    }
+
+    def clearM(m: Stream[UInt]): Unit = {
+        m.ready := False
+    }
 }
 
 object Shape extends App {
-    SpinalVerilog(new Shape(ShapeConfig(8, 8, 640, 10, 1024)))
+    SpinalVerilog(new Shape(ShapeConfig(8, 8, 640, 10, 1024))).printPruned()
 }
