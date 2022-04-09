@@ -22,16 +22,25 @@ class Split(splitConfig: SplitConfig) extends Component {
     val computeChannelTimes = io.channelIn >> log2Up(splitConfig.COMPUTE_CHANNEL_NUM)
     val channelOut = computeChannelTimes >> 1
     val channelCnt = WaCounter(io.sData.fire, splitConfig.CHANNEL_WIDTH, computeChannelTimes - 1)
-//    val columnCnt = WaCounter(channelCnt.valid, splitConfig.FEATURE_WIDTH, io.colNumIn - 1)
-//    val rowCnt = WaCounter(channelCnt.valid && columnCnt.valid, splitConfig.FEATURE_WIDTH, io.rowNumIn - 1)
+    val columnCnt = WaCounter(channelCnt.valid, splitConfig.FEATURE_WIDTH, io.colNumIn - 1)
+    val rowCnt = WaCounter(channelCnt.valid && columnCnt.valid, splitConfig.FEATURE_WIDTH, io.rowNumIn - 1)
 
-    when(channelCnt.count >= channelOut) {
-        io.sData <> io.mData
-    } otherwise {
-        io.mData.valid := False
-        io.mData.payload := 0
-        io.sData.ready := True
-    }
+    val fsm = ShapeStateMachine(io.start)
+    val initCount = WaCounter(fsm.currentState === ShapeStateMachineEnum.INIT, 3, 5)
+    fsm.initEnd := initCount.valid
+    fsm.fifoReady := io.fifoReady
+    fsm.computeEnd := channelCnt.valid && columnCnt.valid
+    fsm.last := channelCnt.valid && columnCnt.valid && rowCnt.valid
+
+    io.mData.arbitrationFrom(io.sData.haltWhen(fsm.currentState =/= ShapeStateMachineEnum.COMPUTE).throwWhen(channelCnt.count < channelOut))
+    io.mData.payload := io.sData.payload
+    //    when(channelCnt.count >= channelOut) {
+    //        io.sData <> io.mData
+    //    } otherwise {
+    //        io.mData.valid := False
+    //        io.mData.payload := 0
+    //        io.sData.ready := True
+    //    }
 
 }
 

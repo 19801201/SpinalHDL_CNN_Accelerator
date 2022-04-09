@@ -3,13 +3,13 @@ package shape
 import spinal.core._
 import spinal.lib._
 
-case class ShapeConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: Int, CHANNEL_WIDTH: Int, MAX_ROW_MEM_DEPTH: Int, UP_ROW_MEM_DEPTH: Int) {
+case class ShapeConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: Int, CHANNEL_WIDTH: Int, ROW_MEM_DEPTH: Int) {
     val STREAM_DATA_WIDTH = DATA_WIDTH * COMPUTE_CHANNEL_NUM
 
     val concatConfig = ConcatConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH)
     val splitConfig = SplitConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH)
-    val upSamplingConfig = UpSamplingConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH, UP_ROW_MEM_DEPTH)
-    val maxPoolingConfig = MaxPoolingConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH, MAX_ROW_MEM_DEPTH)
+    val upSamplingConfig = UpSamplingConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH, ROW_MEM_DEPTH)
+    val maxPoolingConfig = MaxPoolingConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH, ROW_MEM_DEPTH)
 
 }
 
@@ -34,8 +34,14 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
 
     val concat = new Concat(shapeConfig.concatConfig)
 
+    val start = shapeState.io.start.map(_.rise()).reduce(_ || _)
+
+
+
+    val fifo = StreamFifo(UInt(shapeConfig.STREAM_DATA_WIDTH bits), shapeConfig.ROW_MEM_DEPTH << 1)
+    fifo.io.pop <> io.mData
 }
 
 object Shape extends App {
-    SpinalVerilog(new Shape(ShapeConfig(8, 8, 640, 10, 1024, 1024)))
+    SpinalVerilog(new Shape(ShapeConfig(8, 8, 640, 10, 1024)))
 }
