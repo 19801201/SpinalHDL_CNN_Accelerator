@@ -23,9 +23,6 @@ class MaxPooling(maxPoolingConfig: MaxPoolingConfig) extends Component {
     val io = ShapePort(maxPoolingConfig.STREAM_DATA_WIDTH, maxPoolingConfig.FEATURE_WIDTH, maxPoolingConfig.CHANNEL_WIDTH)
     noIoPrefix()
     val computeChannelTimes = io.channelIn >> log2Up(maxPoolingConfig.COMPUTE_CHANNEL_NUM)
-    val fifoCountReg = RegNext(computeChannelTimes * io.colNumIn)
-    val fifoCount = out UInt (fifoCountReg.getWidth bits)
-    fifoCount := fifoCountReg
 
     val fsm = ShapeStateMachine(io.start)
     fsm.fifoReady := io.fifoReady
@@ -34,18 +31,24 @@ class MaxPooling(maxPoolingConfig: MaxPoolingConfig) extends Component {
     fsm.initEnd := initCount.valid
 
 
-    val channelCnt = WaCounter(io.sData.fire && (fsm.currentState === ShapeStateMachineEnum.COMPUTE), maxPoolingConfig.CHANNEL_WIDTH, computeChannelTimes - 1)
-    val columnCnt = WaCounter(channelCnt.valid, maxPoolingConfig.FEATURE_WIDTH, io.colNumIn - 1)
-    val rowCnt = WaCounter(channelCnt.valid && columnCnt.valid, maxPoolingConfig.FEATURE_WIDTH, io.rowNumIn - 1)
-    val channelMem = StreamFifo(UInt(maxPoolingConfig.STREAM_DATA_WIDTH bits), maxPoolingConfig.channelMemDepth)
-    channelMem.io.push.valid <> (io.sData.valid && !columnCnt.count(0))
-    (channelMem.io.push.ready || columnCnt.count(0)) <> io.sData.ready
-    channelMem.io.push.payload <> io.sData.payload
-    channelMem.io.pop.ready <> columnCnt.count(0)
+    val channelCnt = WaCounter(io.sData.fire, maxPoolingConfig.CHANNEL_WIDTH, computeChannelTimes - 1)
+    val columnCnt = WaCounter(channelCnt.valid && io.sData.fire, maxPoolingConfig.FEATURE_WIDTH, io.colNumIn - 1)
+    val rowCnt = WaCounter(fsm.currentState === ShapeStateMachineEnum.LAST, maxPoolingConfig.FEATURE_WIDTH, io.rowNumIn - 1)
+    val channelMem = Mem(UInt(maxPoolingConfig.STREAM_DATA_WIDTH bits), maxPoolingConfig.channelMemDepth)
 
+    val channelMemWriteAddr = WaCounter(!columnCnt.count(0) && io.sData.fire, log2Up(maxPoolingConfig.channelMemDepth), computeChannelTimes - 1)
+    channelMem.write(channelMemWriteAddr.count, io.sData.payload, enable = !columnCnt.count(0) && io.sData.fire)
+    val channelMemReadAddr = WaCounter(columnCnt.count(0) && io.sData.fire, log2Up(maxPoolingConfig.channelMemDepth), computeChannelTimes - 1)
+
+
+    when(fsm.currentState === ShapeStateMachineEnum.COMPUTE) {
+        io.sData.ready := True
+    } otherwise {
+        io.sData.ready := False
+    }
 
     fsm.computeEnd := (columnCnt.valid && channelCnt.valid)
-    fsm.last := (rowCnt.valid && columnCnt.valid && channelCnt.valid)
+    fsm.last := rowCnt.valid
 
     def compare(dataIn1: UInt, dataIn2: UInt): UInt = {
         val dataOut = Reg(UInt(maxPoolingConfig.DATA_WIDTH bits))
@@ -60,19 +63,27 @@ class MaxPooling(maxPoolingConfig: MaxPoolingConfig) extends Component {
     val dataTemp = Vec(UInt(maxPoolingConfig.DATA_WIDTH bits), maxPoolingConfig.COMPUTE_CHANNEL_NUM)
 
 
-    val rowMem = StreamFifo(UInt(maxPoolingConfig.STREAM_DATA_WIDTH bits), maxPoolingConfig.ROW_MEM_DEPTH)
-    rowMem.io.push.valid <> (RegNext(columnCnt.count(0)) && (!rowCnt.count(0)))
-    rowMem.io.push.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices) <> dataTemp
-
-    rowMem.io.pop.ready <> rowCnt.count(0)
-
+    val rowMem = Mem(UInt(maxPoolingConfig.STREAM_DATA_WIDTH bits), maxPoolingConfig.ROW_MEM_DEPTH)
+    val rowMemWriteAddr = WaCounter(RegNext(columnCnt.count(0) && (!rowCnt.count(0)) && io.sData.fire), log2Up(maxPoolingConfig.ROW_MEM_DEPTH), io.colNumIn - 1)
+    rowMem.write(rowMemWriteAddr.count, dataTemp.reverse.reduce(_ @@ _), enable = RegNext(columnCnt.count(0) && (!rowCnt.count(0))))
+    val rowMemReadAddr = WaCounter(RegNext(columnCnt.count(0) && (rowCnt.count(0)) && io.sData.fire), log2Up(maxPoolingConfig.ROW_MEM_DEPTH), io.colNumIn - 1)
+    //    rowMem.readAsync(rowMemReadAddr.count)
     val dataOut = Vec(UInt(maxPoolingConfig.DATA_WIDTH bits), maxPoolingConfig.COMPUTE_CHANNEL_NUM)
+    val pix12 = Vec(UInt(maxPoolingConfig.DATA_WIDTH bits), maxPoolingConfig.COMPUTE_CHANNEL_NUM)
+    val pix11 = Vec(UInt(maxPoolingConfig.DATA_WIDTH bits), maxPoolingConfig.COMPUTE_CHANNEL_NUM)
+    val maxPix2 = Vec(UInt(maxPoolingConfig.DATA_WIDTH bits), maxPoolingConfig.COMPUTE_CHANNEL_NUM)
+    val maxPix1 = Vec(UInt(maxPoolingConfig.DATA_WIDTH bits), maxPoolingConfig.COMPUTE_CHANNEL_NUM)
+
+    pix12 := io.sData.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices)
+    pix11 := channelMem.readAsync(channelMemReadAddr.count).subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices)
+    maxPix2 := dataTemp
+    maxPix1 := rowMem.readAsync(rowMemReadAddr.count).subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices)
     for (i <- 0 until maxPoolingConfig.COMPUTE_CHANNEL_NUM) {
-        dataTemp(i) := compare(io.sData.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices)(i), channelMem.io.pop.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices)(i))
-        dataOut(i) := compare(dataTemp(i), rowMem.io.pop.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices)(i))
+        dataTemp(i) := compare(pix12(i), pix11(i))
+        dataOut(i) := compare(maxPix2(i), maxPix1(i))
     }
-    io.mData.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices) <> dataTemp
-    io.mData.valid <> RegNext(rowCnt.count(0))
+    io.mData.payload.subdivideIn(maxPoolingConfig.COMPUTE_CHANNEL_NUM slices) <> dataOut
+    io.mData.valid <> RegNext(RegNext(rowCnt.count(0) && columnCnt.count(0)))
 
 
 }

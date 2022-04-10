@@ -25,16 +25,18 @@ class UpSampling(upSamplingConfig: UpSamplingConfig) extends Component {
     val computeColumn = io.colNumIn << 1
     val computeRow = io.rowNumIn << 1
 
-    val channelCnt = WaCounter(io.mData.fire, upSamplingConfig.CHANNEL_WIDTH, computeChannelTimes - 1)
-    val columnCnt = WaCounter(channelCnt.valid, computeColumn.getWidth, computeColumn - 1)
-    val rowCnt = WaCounter(channelCnt.valid && columnCnt.valid, computeRow.getWidth, computeRow - 1)
-
     val fsm = ShapeStateMachine(io.start)
+
+    val channelCnt = WaCounter(io.mData.fire, upSamplingConfig.CHANNEL_WIDTH, computeChannelTimes - 1)
+    val columnCnt = WaCounter(channelCnt.valid && io.sData.fire, computeColumn.getWidth, computeColumn - 1)
+    val rowCnt = WaCounter(fsm.currentState === ShapeStateMachineEnum.LAST, computeRow.getWidth, computeRow - 1)
+
+
     val initCount = WaCounter(fsm.currentState === ShapeStateMachineEnum.INIT, 3, 5)
     fsm.initEnd := initCount.valid
     fsm.fifoReady := io.fifoReady
     fsm.computeEnd := channelCnt.valid && columnCnt.valid
-    fsm.last := channelCnt.valid && columnCnt.valid && rowCnt.valid
+    fsm.last := rowCnt.valid
 
     val dataTemp = StreamFifo(UInt(upSamplingConfig.STREAM_DATA_WIDTH bits), upSamplingConfig.ROW_MEM_DEPTH)
 
