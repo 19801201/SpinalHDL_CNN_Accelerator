@@ -63,10 +63,11 @@ class MaxPooling(maxPoolingConfig: MaxPoolingConfig) extends Component {
     val dataTemp = Vec(UInt(maxPoolingConfig.DATA_WIDTH bits), maxPoolingConfig.COMPUTE_CHANNEL_NUM)
 
 
+    val depth = RegNext(io.colNumIn * computeChannelTimes)
     val rowMem = Mem(UInt(maxPoolingConfig.STREAM_DATA_WIDTH bits), maxPoolingConfig.ROW_MEM_DEPTH)
-    val rowMemWriteAddr = WaCounter(RegNext(columnCnt.count(0) && (!rowCnt.count(0)) && io.sData.fire), log2Up(maxPoolingConfig.ROW_MEM_DEPTH), io.colNumIn - 1)
+    val rowMemWriteAddr = WaCounter(RegNext(columnCnt.count(0) && (!rowCnt.count(0)) && io.sData.fire), log2Up(maxPoolingConfig.ROW_MEM_DEPTH), depth - 1)
     rowMem.write(rowMemWriteAddr.count, dataTemp.reverse.reduce(_ @@ _), enable = RegNext(columnCnt.count(0) && (!rowCnt.count(0))))
-    val rowMemReadAddr = WaCounter(RegNext(columnCnt.count(0) && (rowCnt.count(0)) && io.sData.fire), log2Up(maxPoolingConfig.ROW_MEM_DEPTH), io.colNumIn - 1)
+    val rowMemReadAddr = WaCounter(RegNext(columnCnt.count(0) && (rowCnt.count(0)) && io.sData.fire), log2Up(maxPoolingConfig.ROW_MEM_DEPTH), depth - 1)
     //    rowMem.readAsync(rowMemReadAddr.count)
     val dataOut = Vec(UInt(maxPoolingConfig.DATA_WIDTH bits), maxPoolingConfig.COMPUTE_CHANNEL_NUM)
     val pix12 = Vec(UInt(maxPoolingConfig.DATA_WIDTH bits), maxPoolingConfig.COMPUTE_CHANNEL_NUM)
