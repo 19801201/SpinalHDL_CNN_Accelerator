@@ -1,5 +1,7 @@
 package wa.xip.memory.ip.BlockRam
 
+import config.Config.filePath
+import org.apache.commons.io.FileUtils
 import spinal.core._
 
 case class TDRamConfig(AWriteWidth: Int, AWriteDepth: Int, AReadWidth: Int, BWriteWidth: Int, BReadWidth: Int) {
@@ -13,7 +15,6 @@ case class TDRamConfig(AWriteWidth: Int, AWriteDepth: Int, AReadWidth: Int, BWri
     val portADepthWidth: Int = if (AWriteDepthWidth >= AReadDepthWidth) AWriteDepthWidth else AReadDepthWidth
     val portBDepthWidth: Int = if (BWriteDepthWidth >= BReadDepthWidth) BWriteDepthWidth else BReadDepthWidth
 }
-
 
 
 class TDRam[T <: Data](dataType: TDramDataType[T], TDRamConfig: TDRamConfig, clockDomainA: ClockDomain, clockDomainB: ClockDomain, componentName: String) extends BlackBox {
@@ -44,7 +45,8 @@ object TDRam {
             s"if { $$TDRamExit <0} {\n" +
             s"create_ip -name blk_mem_gen -vendor xilinx.com -library ip -version 8.4 -module_name $componentName\n" +
             s"}\n"
-        val tclHeader = new PrintWriter(new File(s"generate$componentName.tcl"))
+        FileUtils.forceMkdir(new File(filePath + File.separator + "tcl"))
+        val tclHeader = new PrintWriter(new File(filePath + File.separator + "tcl" + File.separator + s"generate$componentName.tcl"))
         tclHeader.write(createCmd)
         tclHeader.write(s"set_property -dict [list ")
         tclHeader.write(s"CONFIG.Memory_Type {True_Dual_Port_RAM} ")

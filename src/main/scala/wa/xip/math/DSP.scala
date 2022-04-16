@@ -1,5 +1,7 @@
 package wa.xip.math
 
+import config.Config.filePath
+import org.apache.commons.io.FileUtils
 import spinal.core._
 import spinal.lib._
 
@@ -60,7 +62,8 @@ object DSP {
             s"if { $$dspExit <0} {\n" +
             s"create_ip -name dsp_macro -vendor xilinx.com -library ip -version 1.0 -module_name $componentName\n" +
             s"}\n" + s"set_property -dict [list CONFIG.instruction1 {(A+D)*B} CONFIG.pipeline_options {By_Tier} CONFIG.tier_3 {true} CONFIG.tier_4 {true} CONFIG.tier_6 {true} CONFIG.d_width {26} CONFIG.a_width {8} CONFIG.b_width {9} CONFIG.dreg_3 {true} CONFIG.areg_3 {true} CONFIG.areg_4 {true} CONFIG.breg_3 {true} CONFIG.breg_4 {true} CONFIG.creg_3 {false} CONFIG.creg_4 {false} CONFIG.creg_5 {false} CONFIG.mreg_5 {false} CONFIG.preg_6 {true} CONFIG.d_binarywidth {0} CONFIG.a_binarywidth {0} CONFIG.b_binarywidth {0} CONFIG.concat_width {48} CONFIG.concat_binarywidth {0} CONFIG.c_width {48} CONFIG.c_binarywidth {0} CONFIG.pcin_binarywidth {0} CONFIG.p_full_width {36} CONFIG.p_width {35} CONFIG.p_binarywidth {0}] [get_ips $componentName]"
-        val tclHeader = new PrintWriter(new File(s"generate$componentName.tcl"))
+        FileUtils.forceMkdir(new File(filePath + File.separator + "tcl"))
+        val tclHeader = new PrintWriter(new File(filePath + File.separator + "tcl" + File.separator + s"generate$componentName.tcl"))
         tclHeader.write(createDspCmd)
         tclHeader.close()
     }

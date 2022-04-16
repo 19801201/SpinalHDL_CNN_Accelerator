@@ -1,6 +1,9 @@
 package wa.xip.math
 
+import config.Config.filePath
+import org.apache.commons.io.FileUtils
 import spinal.core._
+
 object AddSubConfig {
     val signed = "signed"
     val unsigned = "Unsigned"
@@ -9,6 +12,7 @@ object AddSubConfig {
     val subtract = "Subtract"
     val add = "Add"
 }
+
 class AddSub(A_WIDTH: Int, B_WIDTH: Int, S_WIDTH: Int, A_TYPE: String, B_TYPE: String, clockDomain: ClockDomain, componentName: String)
     extends BlackBox {
     val io = new Bundle {
@@ -34,14 +38,16 @@ class AddSub(A_WIDTH: Int, B_WIDTH: Int, S_WIDTH: Int, A_TYPE: String, B_TYPE: S
 
     mapClockDomain(clockDomain, io.CLK)
 }
-object AddSub{
-    private def genTcl(A_WIDTH: Int, B_WIDTH: Int, P_WIDTH: Int, A_TYPE: String, B_TYPE: String, PIPELINE_STAGE: Int, RESOURCES_TYPE: String,ADD_MODE:String,componentName:String): Unit ={
+
+object AddSub {
+    private def genTcl(A_WIDTH: Int, B_WIDTH: Int, P_WIDTH: Int, A_TYPE: String, B_TYPE: String, PIPELINE_STAGE: Int, RESOURCES_TYPE: String, ADD_MODE: String, componentName: String): Unit = {
         import java.io._
         val createAddCmd = s"set addSubExit [lsearch -exact [get_ips $componentName] $componentName]\n" +
             s"if { $$addSubExit <0} {\n" +
             s"create_ip -name c_addsub -vendor xilinx.com -library ip -version 12.0 -module_name $componentName\n" +
             s"}\n"
-        val tclHeader = new PrintWriter(new File(s"generate$componentName.tcl"))
+        FileUtils.forceMkdir(new File(filePath + File.separator + "tcl"))
+        val tclHeader = new PrintWriter(new File(filePath + File.separator + "tcl" + File.separator + s"generate$componentName.tcl"))
         tclHeader.write(createAddCmd)
         tclHeader.write(s"set_property -dict [list ")
         tclHeader.write(s"CONFIG.A_Width {$A_WIDTH} ")
@@ -50,14 +56,14 @@ object AddSub{
         tclHeader.write(s"CONFIG.B_Type {$B_TYPE} ")
         tclHeader.write(s"CONFIG.CE {false} ")
         tclHeader.write(s"CONFIG.Add_Mode {$ADD_MODE} ")
-       // tclHeader.write(s"CONFIG.B_Value {false} ")
-        val res = if(RESOURCES_TYPE == AddSubConfig.dsp){
+        // tclHeader.write(s"CONFIG.B_Value {false} ")
+        val res = if (RESOURCES_TYPE == AddSubConfig.dsp) {
             "DSP48"
         } else {
             "Fabric"
         }
         tclHeader.write(s"CONFIG.Implementation {$res} ")
-//        val w = P_WIDTH - 1
+        //        val w = P_WIDTH - 1
         tclHeader.write(s"CONFIG.Out_Width {$P_WIDTH} ")
         tclHeader.write(s"CONFIG.Latency {$PIPELINE_STAGE} ")
         tclHeader.write(s"] [get_ips $componentName] \n")
@@ -65,11 +71,12 @@ object AddSub{
 
 
     }
-    def apply(A_WIDTH: Int, B_WIDTH: Int, S_WIDTH: Int, A_TYPE: String, B_TYPE: String, PIPELINE_STAGE: Int, RESOURCES_TYPE: String,clockDomain: ClockDomain,ADD_MODE:String,componentName:String,genTclScript:Boolean=true) = {
-        if(genTclScript){
-            genTcl(A_WIDTH, B_WIDTH, S_WIDTH, A_TYPE, B_TYPE, PIPELINE_STAGE, RESOURCES_TYPE,ADD_MODE,componentName)
+
+    def apply(A_WIDTH: Int, B_WIDTH: Int, S_WIDTH: Int, A_TYPE: String, B_TYPE: String, PIPELINE_STAGE: Int, RESOURCES_TYPE: String, clockDomain: ClockDomain, ADD_MODE: String, componentName: String, genTclScript: Boolean = true) = {
+        if (genTclScript) {
+            genTcl(A_WIDTH, B_WIDTH, S_WIDTH, A_TYPE, B_TYPE, PIPELINE_STAGE, RESOURCES_TYPE, ADD_MODE, componentName)
         }
-        val addSub = new AddSub(A_WIDTH, B_WIDTH, S_WIDTH, A_TYPE, B_TYPE,clockDomain,componentName)
+        val addSub = new AddSub(A_WIDTH, B_WIDTH, S_WIDTH, A_TYPE, B_TYPE, clockDomain, componentName)
         addSub
     }
 }

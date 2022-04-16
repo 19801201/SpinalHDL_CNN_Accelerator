@@ -1,7 +1,8 @@
 package wa.xip.math
 
 import spinal.core._
-
+import config.Config.filePath
+import org.apache.commons.io.FileUtils
 object MulConfig {
     val signed = "signed"
     val unsigned = "Unsigned"
@@ -42,7 +43,8 @@ object Mul {
             s"if { $$mulExit <0} {\n" +
             s"create_ip -name mult_gen -vendor xilinx.com -library ip -version 12.0 -module_name $componentName\n" +
             s"}\n"
-        val tclHeader = new PrintWriter(new File(s"generate$componentName.tcl"))
+        FileUtils.forceMkdir(new File(filePath + File.separator + "tcl"))
+        val tclHeader = new PrintWriter(new File(filePath + File.separator + "tcl" + File.separator + s"generate$componentName.tcl"))
         tclHeader.write(createMulCmd)
         tclHeader.write(s"set_property -dict [list ")
         tclHeader.write(s"CONFIG.PortAWidth {$A_WIDTH} ")
@@ -71,7 +73,8 @@ object Mul {
             s"if { $$mulExit <0} {\n" +
             s"create_ip -name mult_gen -vendor xilinx.com -library ip -version 12.0 -module_name $componentName\n" +
             s"}\n"
-        val tclHeader = new PrintWriter(new File(s"generate$componentName.tcl"))
+        FileUtils.forceMkdir(new File(filePath + File.separator + "tcl"))
+        val tclHeader = new PrintWriter(new File(filePath + File.separator + "tcl" + File.separator + s"generate$componentName.tcl"))
         tclHeader.write(createMulCmd)
         tclHeader.write(s"set_property -dict [list ")
         tclHeader.write(s"CONFIG.PortAWidth {$A_WIDTH} ")
@@ -101,10 +104,10 @@ object Mul {
         mul
     }
 
-    def apply(A_WIDTH: Int, B_WIDTH: Int, P_WIDTH: Int, A_TYPE: String, B_TYPE: String, PIPELINE_STAGE: Int, RESOURCES_TYPE: String, clockDomain: ClockDomain, componentName: String, outMsb: Int, outLsb: Int,genTclScript: Boolean) = {
+    def apply(A_WIDTH: Int, B_WIDTH: Int, P_WIDTH: Int, A_TYPE: String, B_TYPE: String, PIPELINE_STAGE: Int, RESOURCES_TYPE: String, clockDomain: ClockDomain, componentName: String, outMsb: Int, outLsb: Int, genTclScript: Boolean) = {
         if (genTclScript) {
             // mulIndex = mulIndex + 1
-            genTcl(A_WIDTH, B_WIDTH, A_TYPE, B_TYPE, PIPELINE_STAGE, RESOURCES_TYPE, componentName,outMsb,outLsb)
+            genTcl(A_WIDTH, B_WIDTH, A_TYPE, B_TYPE, PIPELINE_STAGE, RESOURCES_TYPE, componentName, outMsb, outLsb)
         }
         val mul = new Mul(A_WIDTH, B_WIDTH, P_WIDTH, A_TYPE, B_TYPE, clockDomain, componentName)
         mul

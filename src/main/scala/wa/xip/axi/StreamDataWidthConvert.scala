@@ -1,5 +1,7 @@
 package wa.xip.axi
 
+import config.Config.filePath
+import org.apache.commons.io.FileUtils
 import spinal.core._
 import spinal.lib._
 
@@ -28,7 +30,8 @@ object StreamDataWidthConvert {
             s"if { $$dataConvert <0} {\n" +
             s"create_ip -name axis_dwidth_converter -vendor xilinx.com -library ip -version 1.1 -module_name $componentName\n" +
             s"}\n"
-        val tclHeader = new PrintWriter(new File(s"generate$componentName.tcl"))
+        FileUtils.forceMkdir(new File(filePath + File.separator + "tcl"))
+        val tclHeader = new PrintWriter(new File(filePath + File.separator + "tcl" + File.separator + s"generate$componentName.tcl"))
         tclHeader.write(createAddCmd)
         val sByte = sDataWidth / 8
         val mByte = mDataWidth / 8
