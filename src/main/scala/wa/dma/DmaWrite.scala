@@ -1,4 +1,5 @@
 package wa.dma
+
 import spinal.core._
 
 import spinal.lib._
@@ -7,9 +8,9 @@ import spinal.lib.bus.amba4.axi._
 
 class DmaWrite(dmaWriteConfig: DmaConfig) extends Component {
     val io = new Bundle {
-        val M_AXI_S2MM = master(Axi4WriteOnly(Axi4Config(32, dataWidth = dmaWriteConfig.dataWidth, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+        val M_AXI_S2MM = master(Axi4WriteOnly(Axi4Config(addressWidth = dmaWriteConfig.addrWidth, dataWidth = dmaWriteConfig.dataWidth, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
         Axi4SpecRenamer(M_AXI_S2MM)
-        val M_AXIS_S2MM = slave(Stream(Bits(dmaWriteConfig.dataWidth bits)))
+        val M_AXIS_S2MM = slave(Stream(UInt(dmaWriteConfig.dataWidth bits)))
 
         val cmd = DmaCmd()
     }
@@ -31,7 +32,7 @@ class DmaWrite(dmaWriteConfig: DmaConfig) extends Component {
 
     io.M_AXI_S2MM.w.valid <> io.M_AXIS_S2MM.valid
     io.M_AXI_S2MM.w.ready <> io.M_AXIS_S2MM.ready
-    io.M_AXI_S2MM.w.payload.data <> io.M_AXIS_S2MM.payload
+    io.M_AXI_S2MM.w.payload.data.assignFromBits(io.M_AXIS_S2MM.payload.asBits)
     io.M_AXI_S2MM.w.payload.strb.setAll()
 
 
@@ -120,5 +121,5 @@ class DmaWrite(dmaWriteConfig: DmaConfig) extends Component {
 }
 
 object DmaWrite extends App {
-    SpinalVerilog(new DmaWrite(DmaConfig(64, 32))).printPruned()
+    SpinalVerilog(new DmaWrite(DmaConfig(32, 64, 32))).printPruned()
 }

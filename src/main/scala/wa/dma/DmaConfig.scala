@@ -10,7 +10,7 @@ case class DmaCmd() extends Bundle {
     val introut = out Bool()
 }
 
-case class DmaConfig(dataWidth: Int, burstSize: Int) {
+case class DmaConfig(addrWidth: Int, dataWidth: Int, burstSize: Int) {
     require((dataWidth & (dataWidth - 1)) == 0, "dataWidth需要是2的幂次")
     require((burstSize & (burstSize - 1)) == 0, "burstSize需要是2的幂次")
     val byteConut = dataWidth / 8

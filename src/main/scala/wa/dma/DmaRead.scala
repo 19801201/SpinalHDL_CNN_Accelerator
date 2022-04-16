@@ -1,4 +1,5 @@
 package wa.dma
+
 import spinal.core._
 
 import spinal.lib._
@@ -6,9 +7,9 @@ import spinal.lib.bus.amba4.axi._
 
 class DmaRead(dmaReadConfig: DmaConfig) extends Component {
     val io = new Bundle {
-        val M_AXI_MM2S = master(Axi4ReadOnly(Axi4Config(32, dataWidth = dmaReadConfig.dataWidth, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+        val M_AXI_MM2S = master(Axi4ReadOnly(Axi4Config(addressWidth = dmaReadConfig.addrWidth, dataWidth = dmaReadConfig.dataWidth, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
         Axi4SpecRenamer(M_AXI_MM2S)
-        val M_AXIS_MM2S = master(Stream(Bits(dmaReadConfig.dataWidth bits)))
+        val M_AXIS_MM2S = master(Stream(UInt(dmaReadConfig.dataWidth bits)))
 
         val cmd = DmaCmd()
     }
@@ -29,7 +30,7 @@ class DmaRead(dmaReadConfig: DmaConfig) extends Component {
 
     io.M_AXIS_MM2S.valid := io.M_AXI_MM2S.r.valid
     io.M_AXI_MM2S.r.ready := io.M_AXIS_MM2S.ready
-    io.M_AXIS_MM2S.payload := io.M_AXI_MM2S.r.payload.data
+    io.M_AXIS_MM2S.payload.assignFromBits(io.M_AXI_MM2S.r.payload.data)
 
 
     val addr = Reg(UInt(32 bits)) init 0
@@ -103,5 +104,5 @@ class DmaRead(dmaReadConfig: DmaConfig) extends Component {
 }
 
 object DmaRead extends App {
-    SpinalVerilog(new DmaRead(DmaConfig(64, 32))).printPruned()
+    SpinalVerilog(new DmaRead(DmaConfig(32, 64, 32))).printPruned()
 }
