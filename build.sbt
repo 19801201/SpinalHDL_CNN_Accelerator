@@ -7,8 +7,8 @@ scalaVersion := "2.11.12"
 fork := true
 
 libraryDependencies ++= Seq(
-    "com.github.spinalhdl" % "spinalhdl-core_2.11" % "1.6.1",
-    "com.github.spinalhdl" % "spinalhdl-lib_2.11" % "1.6.1",
-    compilerPlugin("com.github.spinalhdl" % "spinalhdl-idsl-plugin_2.11" % "1.6.1"),
+    "com.github.spinalhdl" % "spinalhdl-core_2.11" % "1.6.4",
+    "com.github.spinalhdl" % "spinalhdl-lib_2.11" % "1.6.4",
+    compilerPlugin("com.github.spinalhdl" % "spinalhdl-idsl-plugin_2.11" % "1.6.4"),
     "com.google.code.gson" % "gson" % "2.7"
 )
