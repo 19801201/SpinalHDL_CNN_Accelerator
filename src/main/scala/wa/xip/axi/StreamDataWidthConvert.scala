@@ -40,6 +40,7 @@ object StreamDataWidthConvert {
         tclHeader.write(s"CONFIG.M_TDATA_NUM_BYTES {$mByte} ")
         tclHeader.write(s"CONFIG.HAS_MI_TKEEP {0} ")
         tclHeader.write(s"] [get_ips $componentName] \n")
+        tclHeader.write(s"set_property generate_synth_checkpoint 0 [get_files $componentName.xci] \n")
         tclHeader.close()
     }
 

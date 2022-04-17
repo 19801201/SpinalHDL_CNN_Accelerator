@@ -15,7 +15,7 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
         val shapeSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
         val shapeSData1 = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
         val shapeMData = master(Axi4WriteOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
-        val instruction = slave(AxiLite4(log2Up(registerAddrSize), 32))
+        val regSData = slave(AxiLite4(log2Up(registerAddrSize), 32))
     }
     noIoPrefix()
     Axi4SpecRenamer(io.convSData)
@@ -23,6 +23,7 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
     Axi4SpecRenamer(io.shapeSData)
     Axi4SpecRenamer(io.shapeSData1)
     Axi4SpecRenamer(io.shapeMData)
+    AxiLite4SpecRenamer(io.regSData)
 
     val convDmaWrite = new DmaWrite(DmaConfig(log2Up(DDRSize), convConfig.FEATURE_S_DATA_WIDTH, burstSize))
     val convDmaRead = new DmaRead(DmaConfig(log2Up(DDRSize), convConfig.FEATURE_M_DATA_WIDTH, burstSize))
@@ -41,11 +42,45 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
     val conv = new Conv(convConfig)
     conv.io.sData <> convDmaRead.io.M_AXIS_MM2S
     convDmaWrite.io.M_AXIS_S2MM <> conv.io.mData
+    conv.io.dmaWriteValid <> convDmaWrite.io.cmd.valid
+    conv.io.dmaReadValid <> convDmaRead.io.cmd.valid
+    conv.io.introut <> convDmaWrite.io.cmd.introut
 
     val shape = new Shape(shapeConfig)
     shape.io.sData(0) <> shapeDmaRead.io.M_AXIS_MM2S
     shape.io.sData(1) <> shapeDmaRead1.io.M_AXIS_MM2S
     shape.io.mData <> shapeDmaWrite.io.M_AXIS_S2MM
+    shape.io.dmaReadValid(0) <> shapeDmaRead.io.cmd.valid
+    shape.io.dmaReadValid(1) <> shapeDmaRead1.io.cmd.valid
+    shape.io.dmaWriteValid <> shapeDmaWrite.io.cmd.valid
+    shape.io.introut <> shapeDmaWrite.io.cmd.introut
+
+    val register = new instruction.Instruction
+    register.io.regSData <> io.regSData
+    (0 until 3).foreach(i => {
+        register.ins(i) <> conv.io.instruction(i)
+    })
+    (0 until 6).foreach(i => {
+        register.ins(i) <> shape.io.instruction(i)
+    })
+    register.convState <> conv.io.state
+    register.convControl <> conv.io.control
+    register.shapeState <> shape.io.state
+    register.shapeControl <> shape.io.control
+
+    register.dma(0)(0)(0).asUInt <> convDmaWrite.io.cmd.addr
+    register.dma(0)(1)(0).asUInt <> convDmaWrite.io.cmd.len
+    register.dma(0)(0)(1).asUInt <> convDmaRead.io.cmd.addr
+    register.dma(0)(1)(1).asUInt <> convDmaRead.io.cmd.len
+
+    register.dma(1)(0)(0).asUInt <> shapeDmaWrite.io.cmd.addr
+    register.dma(1)(1)(0).asUInt <> shapeDmaWrite.io.cmd.len
+    register.dma(1)(0)(1).asUInt <> shapeDmaRead.io.cmd.addr
+    register.dma(1)(1)(1).asUInt <> shapeDmaRead.io.cmd.len
+    register.dma(1)(0)(2).asUInt <> shapeDmaRead1.io.cmd.addr
+    register.dma(1)(1)(2).asUInt <> shapeDmaRead1.io.cmd.len
+
+
 }
 
 object Npu extends App {
