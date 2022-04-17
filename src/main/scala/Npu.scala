@@ -10,11 +10,11 @@ import wa.dma.{DmaConfig, DmaRead, DmaWrite}
 
 class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
     val io = new Bundle {
-        val convSData = master(Axi4(Axi4Config(log2Up(DDRSize), convConfig.FEATURE_S_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
-        val convMData = master(Axi4(Axi4Config(log2Up(DDRSize), convConfig.FEATURE_M_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
-        val shapeSData = master(Axi4(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
-        val shapeSData1 = master(Axi4(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
-        val shapeMData = master(Axi4(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+        val convSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), convConfig.FEATURE_S_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+        val convMData = master(Axi4WriteOnly(Axi4Config(log2Up(DDRSize), convConfig.FEATURE_M_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+        val shapeSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+        val shapeSData1 = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+        val shapeMData = master(Axi4WriteOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
         val instruction = slave(AxiLite4(log2Up(registerAddrSize), 32))
     }
     noIoPrefix()
@@ -27,15 +27,15 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
     val convDmaWrite = new DmaWrite(DmaConfig(log2Up(DDRSize), convConfig.FEATURE_S_DATA_WIDTH, burstSize))
     val convDmaRead = new DmaRead(DmaConfig(log2Up(DDRSize), convConfig.FEATURE_M_DATA_WIDTH, burstSize))
 
-    convDmaWrite.io.M_AXI_S2MM.toAxi4() <> io.convMData
-    convDmaRead.io.M_AXI_MM2S.toAxi4() <> io.convSData
+    convDmaWrite.io.M_AXI_S2MM <> io.convMData
+    convDmaRead.io.M_AXI_MM2S <> io.convSData
 
     val shapeDmaWrite = new DmaWrite(DmaConfig(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, burstSize))
     val shapeDmaRead = new DmaRead(DmaConfig(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, burstSize))
     val shapeDmaRead1 = new DmaRead(DmaConfig(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, burstSize))
-    shapeDmaWrite.io.M_AXI_S2MM.toAxi4() <> io.shapeMData
-    shapeDmaRead.io.M_AXI_MM2S.toAxi4() <> io.shapeSData
-    shapeDmaRead1.io.M_AXI_MM2S.toAxi4() <> io.shapeSData1
+    shapeDmaWrite.io.M_AXI_S2MM <> io.shapeMData
+    shapeDmaRead.io.M_AXI_MM2S <> io.shapeSData
+    shapeDmaRead1.io.M_AXI_MM2S <> io.shapeSData1
 
 
     val conv = new Conv(convConfig)
