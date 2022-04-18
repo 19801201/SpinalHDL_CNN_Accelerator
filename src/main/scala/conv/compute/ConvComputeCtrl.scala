@@ -85,7 +85,7 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
         val channelOut = in UInt (convConfig.CHANNEL_WIDTH bits)
 
         val featureMemReadAddr = out UInt (log2Up(convConfig.FEATURE_MEM_DEPTH) bits)
-        val featureMemWriteAddr = out(Reg(UInt(log2Up(convConfig.FEATURE_MEM_DEPTH) bits)) init (0))
+        val featureMemWriteAddr = out((UInt(log2Up(convConfig.FEATURE_MEM_DEPTH) bits)))
         val featureMemWriteReady = out(Reg(Bool()) init False)
 
         val weightReadAddr = out Vec(UInt(log2Up(convConfig.WEIGHT_M_DATA_DEPTH) bits), convConfig.KERNEL_NUM)
@@ -134,12 +134,14 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     setClear(convComputeCtrlFsm.initEnd, initCnt.valid)
 
     setClear(io.featureMemWriteReady, convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelOutCnt.count === 0)
+    val featureMemWriteAddr = Reg(UInt(log2Up(convConfig.FEATURE_MEM_DEPTH) bits)) init 0 addAttribute ("max_fanout = \"50\"")
+    io.featureMemWriteAddr := featureMemWriteAddr
     when(channelOutCnt.count === 0 && channelInCnt.count === 0) {
-        io.featureMemWriteAddr := 0
+        featureMemWriteAddr := 0
     } elsewhen io.featureMemWriteReady {
-        io.featureMemWriteAddr := io.featureMemWriteAddr + 1
+        featureMemWriteAddr := featureMemWriteAddr + 1
     } otherwise {
-        io.featureMemWriteAddr := 0
+        featureMemWriteAddr := 0
     }
 
     def increase(data: UInt, clear: Bool, delay: Int): UInt = {
