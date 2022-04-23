@@ -27,11 +27,11 @@ class DSP(componentName: String) extends BlackBox {
           wire  signed       [7:0]   ain;
           assign ain = $signed(a);
           wire  signed       [24:0]  din;
-          wire [34:0] pout;
+          wire [33:0] pout;
           wire [15:0] a1;
           wire [15:0] a2;
           assign a1 = pout[15:0];
-          assign a2 = pout[33:18];
+          assign a2 = pout[31:16];
           always@(*)begin
                if(a1[15])begin
                    p[15:0] = a1;
@@ -41,7 +41,7 @@ class DSP(componentName: String) extends BlackBox {
                    p[31:16] = a2;
                end
           end
-          assign din =  $signed({d,17'd0});""" + "\r\n          " + componentName + " " + componentName + "_inst" +
+          assign din =  $signed({d,16'd0});""" + "\r\n          " + componentName + " " + componentName + "_inst" +
             """ (
             .CLK(CLK),  // input wire CLK
             .A(ain),      // input wire [7 : 0] A
