@@ -133,11 +133,11 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     val mulFeatureWeight = Array.tabulate(convConfig.KERNEL_NUM, convConfig.COMPUTE_CHANNEL_OUT_NUM / 2, convConfig.COMPUTE_CHANNEL_IN_NUM)((i, j, k) => {
         def gen = {
             //提供了两种方式，第二种直接调用DSP IP，节省了资源
-//            val mul = xMul(24, 8, convConfig.mulWeightWidth)
-//            mul.io.A <> loadWeight.io.weightRead(i).data(((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8) @@ U"8'd0" @@ loadWeight.io.weightRead(i).data(((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
-//            mul.io.B <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
-//            mul.io.P <> mulFeatureWeightData(i)(j)(k)
-            val mul = DSP("mulWeight",i==0)
+            //            val mul = xMul(24, 8, convConfig.mulWeightWidth)
+            //            mul.io.A <> loadWeight.io.weightRead(i).data(((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8) @@ U"8'd0" @@ loadWeight.io.weightRead(i).data(((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
+            //            mul.io.B <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
+            //            mul.io.P <> mulFeatureWeightData(i)(j)(k)
+            val mul = DSP("mulWeight", i == 0)
             mul.a <> loadWeight.io.weightRead(i).data(((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
             mul.d <> loadWeight.io.weightRead(i).data(((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
             mul.b <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
