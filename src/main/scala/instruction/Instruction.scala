@@ -8,7 +8,6 @@ import spinal.lib.bus.amba4.axilite._
 import spinal.lib.bus.misc.SizeMapping
 import spinal.lib.bus.regif._
 import spinal.lib.bus.regif.AccessType._
-import spinal.lib.bus.regif.Document.HtmlGenerator
 
 class Instruction extends Component {
     val io = new Bundle {
