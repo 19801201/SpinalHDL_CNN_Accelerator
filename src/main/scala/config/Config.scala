@@ -8,6 +8,6 @@ object Config {
     val registerAddrSize = 1 MiB
     val burstSize = 32
 
-    val dsp2x = false
+    val dsp2x = true
 
 }

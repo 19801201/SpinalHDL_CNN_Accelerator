@@ -11,7 +11,7 @@ class DSP(componentName: String, clockDomain2X: ClockDomain = null) extends Blac
     val a = in UInt (8 bits)
     val d = in UInt (8 bits)
     val b = in UInt (8 bits)
-    val p = out UInt (32 bits)
+    val p = if (!config.Config.dsp2x) out UInt (32 bits) else out UInt (64 bits)
     val CLK = in Bool()
     val a1 = config.Config.dsp2x generate (in UInt (8 bits))
     val d1 = config.Config.dsp2x generate (in UInt (8 bits))
@@ -24,7 +24,7 @@ class DSP(componentName: String, clockDomain2X: ClockDomain = null) extends Blac
     }
     if (config.Config.dsp2x) {
         setInlineVerilog(
-            """module DSP2X (
+            """module DSP (
               input             [7:0] a       ,
               input             [7:0] d       ,
               input             [7:0] a1      ,
@@ -149,11 +149,11 @@ class DSP(componentName: String, clockDomain2X: ClockDomain = null) extends Blac
 
     reg [31:0] pTemp;
     always@(posedge CLK)begin
-        if(out_validq)begin
-            pTemp = pTemp;
-        end else begin
+//        if(out_validq)begin
+//            pTemp = pTemp;
+//        end else begin
             pTemp = dsp2x_x_out[31:0];
-        end
+//        end
     end
     assign p = {dsp2x_x_out[63:32],pTemp};
     reg  signed       [7:0]   dsp_ain;
@@ -325,6 +325,8 @@ endmodule
 }
 
 object DSP {
+    private var genClk = true
+
     def genTcl(componentName: String): Unit = {
         import java.io._
         val createDspCmd = s"set dspExit [lsearch -exact [get_ips $componentName] $componentName]\n" +
@@ -340,14 +342,9 @@ object DSP {
         tclHeader.close()
     }
 
-    def apply(componentName: String, genericTcl: Boolean = false) = {
+    def apply(componentName: String, myClockDomain: ClockDomain = null, genericTcl: Boolean = false) = {
         if (genericTcl) {
             genTcl(componentName)
-        }
-        val myClockDomain = if (config.Config.dsp2x) ClockDomain.external("myClockName") else null
-        if (config.Config.dsp2x) {
-            myClockDomain.clock.setName("CLK_2X")
-            myClockDomain.reset.setName("RST_2X")
         }
         val dsp = new DSP(componentName, clockDomain2X = myClockDomain)
         dsp

@@ -129,21 +129,37 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
 
         gen
     }
+    val myClockDomain = if (config.Config.dsp2x) ClockDomain.external("myClockName") else null
+    if (config.Config.dsp2x) {
+        myClockDomain.clock.setName("CLK_2X")
+        myClockDomain.reset.setName("RST_2X")
+    }
     val mulFeatureWeightData = Vec(Vec(Vec(UInt(convConfig.mulWeightWidth bits), convConfig.COMPUTE_CHANNEL_IN_NUM), convConfig.COMPUTE_CHANNEL_OUT_NUM / 2), convConfig.KERNEL_NUM)
-    val mulFeatureWeight = Array.tabulate(convConfig.KERNEL_NUM, convConfig.COMPUTE_CHANNEL_OUT_NUM / 2, convConfig.COMPUTE_CHANNEL_IN_NUM)((i, j, k) => {
+    val mulFeatureWeight = if (!config.Config.dsp2x) Array.tabulate(convConfig.KERNEL_NUM, convConfig.COMPUTE_CHANNEL_OUT_NUM / 2, convConfig.COMPUTE_CHANNEL_IN_NUM)((i, j, k) => {
         def gen = {
             //提供了两种方式，第二种直接调用DSP IP，节省了资源
             //            val mul = xMul(24, 8, convConfig.mulWeightWidth)
             //            mul.io.A <> loadWeight.io.weightRead(i).data(((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8) @@ U"8'd0" @@ loadWeight.io.weightRead(i).data(((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
             //            mul.io.B <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
             //            mul.io.P <> mulFeatureWeightData(i)(j)(k)
-            val mul = DSP("mulWeight", i == 0)
+            val mul = DSP("mulWeight", myClockDomain = myClockDomain,genericTcl = i == 0)
             mul.a <> loadWeight.io.weightRead(i).data(((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
             mul.d <> loadWeight.io.weightRead(i).data(((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
             mul.b <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
             mul.p <> mulFeatureWeightData(i)(j)(k)
         }
 
+        gen
+    }) else Array.tabulate(convConfig.KERNEL_NUM, convConfig.COMPUTE_CHANNEL_OUT_NUM / 4, convConfig.COMPUTE_CHANNEL_IN_NUM)((i, j, k) => {
+        def gen = {
+            val mul = DSP("mulWeight", myClockDomain = myClockDomain,genericTcl = i == 0)
+            mul.a <> loadWeight.io.weightRead(i).data(((4 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((4 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
+            mul.d <> loadWeight.io.weightRead(i).data(((4 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((4 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
+            mul.a1 <> loadWeight.io.weightRead(i).data(((4 * j + 2) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((4 * j + 2) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
+            mul.d1 <> loadWeight.io.weightRead(i).data(((4 * j + 3) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((4 * j + 3) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
+            mul.b <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
+            mul.p.subdivideIn(2 slices) <> Vec(mulFeatureWeightData(i)(2 * j)(k), mulFeatureWeightData(i)(2 * j + 1)(k))
+        }
         gen
     })
     val addKernelData = Vec(Vec(SInt(convConfig.addKernelWidth bits), convConfig.COMPUTE_CHANNEL_IN_NUM), convConfig.COMPUTE_CHANNEL_OUT_NUM / 2)
