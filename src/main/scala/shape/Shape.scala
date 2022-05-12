@@ -80,7 +80,7 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
 
 
     val dataCount1 = RegNext((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt * instructionReg(Instruction.COL_NUM_IN).asUInt)
-    val dataCount2 = RegNext(dataCount1 << 1)
+    val dataCount2 = RegNext(dataCount1 |<< 1)
     val dataCount = UInt(dataCount2.getWidth bits)
 
     val fifo = StreamFifo(UInt(shapeConfig.STREAM_DATA_WIDTH bits), shapeConfig.ROW_MEM_DEPTH << 1)
