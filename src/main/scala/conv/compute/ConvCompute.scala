@@ -17,6 +17,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val mFeatureData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits)
         val mNormData = master(Stream(Vec(SInt(convConfig.addChannelTimesWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM))) //调试使用
         val copyWeightDone = out Bool()
+        val computeComplete = out Bool()
 
         val rowNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
         val colNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
@@ -29,6 +30,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val weightNum = in UInt (log2Up(convConfig.WEIGHT_S_DATA_DEPTH) bits)
         val quanNum = in UInt (log2Up(convConfig.QUAN_S_DATA_DEPTH) bits)
         val quanZeroData = in UInt (8 bits)
+        val enStride = in Bool()
 
         val convType = in Bits (2 bits)
     }
@@ -59,8 +61,8 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     computeCtrl.io.activationEn <> io.enActivation
 
     /** *********************************************************** */
-    computeCtrl.io.mDataReady <> io.mFeatureData.ready
-    computeCtrl.io.mDataValid <> io.mFeatureData.valid
+//    computeCtrl.io.mDataReady <> io.mFeatureData.ready
+//    computeCtrl.io.mDataValid <> io.mFeatureData.valid
 
     /** *********************************************************** */
     computeCtrl.io.convType <> convType
@@ -216,8 +218,20 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     quan.io.scaleIn <> loadWeight.io.scaleRead.data
     quan.io.shiftIn <> loadWeight.io.shiftRead.data
     quan.io.zeroIn <> io.quanZeroData
-    quan.io.dataOut <> io.mFeatureData.payload
+//    quan.io.dataOut <> io.mFeatureData.payload
     quan.io.activationEn <> io.enActivation
+
+    val stride = new Stride(convConfig)
+    stride.io.enStride <> io.enStride
+    stride.io.sData.valid <> computeCtrl.io.mDataValid
+    stride.io.sData.payload <> quan.io.dataOut
+    stride.io.mData <> io.mFeatureData
+    stride.io.channelOut <> io.channelOut
+    stride.io.colNumIn <> io.colNumIn
+    stride.io.rowNumIn <> io.rowNumIn
+    stride.io.sReady <> computeCtrl.io.mDataReady
+    stride.io.complete <> io.computeComplete
+    stride.io.start <> io.startCu
 
 }
 

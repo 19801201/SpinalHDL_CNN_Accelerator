@@ -66,9 +66,10 @@ class Stride(convConfig: ConvConfig) extends Component {
     val colTimes = RegNextWhen(io.colNumIn >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM), fsm.currentState === StrideEnum.INIT)
     val rowTimes = RegNextWhen(io.rowNumIn >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM), fsm.currentState === StrideEnum.INIT)
 
-    val dataCount1 = RegNext(channelTimes * colTimes)
-    val dataCount2 = RegNext(dataCount1 |<< 1)
-    val dataCount = io.enStride ? dataCount2 | dataCount1
+    //    val dataCount1 = RegNext(channelTimes * colTimes)
+    //    val dataCount2 = RegNext(dataCount1 |<< 1)
+    //    val dataCount = io.enStride ? dataCount2 | dataCount1
+    val dataCount = RegNext(channelTimes * colTimes)
 
     val channelCnt = WaCounter(fsm.currentState === StrideEnum.STRIDE && fifo.io.push.fire, channelTimes.getWidth, channelTimes - 1)
     val colCnt = WaCounter(channelCnt.valid, colTimes.getWidth, colTimes - 1)

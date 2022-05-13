@@ -62,13 +62,22 @@ class Conv(convConfig: ConvConfig) extends Component {
     convCompute.io.zeroNum := computeInstructionReg(CONV_STATE.Z1_NUM).asUInt.resized
     convCompute.io.quanZeroData := computeInstructionReg(CONV_STATE.Z3).asUInt.resized
     convCompute.io.convType := computeInstructionReg(CONV_STATE.CONV_TYPE).resized
+    convCompute.io.enStride := computeInstructionReg(CONV_STATE.EN_STRIDE)
 
     convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
     convCompute.io.quanNum := paraInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
 
+    val writeComplete = Reg(Bool()) init(False)
+    writeComplete.setWhen(io.introut)
+    writeComplete.clearWhen(io.control === CONV_STATE.START_PA)
+
+    val computeComplete = Reg(Bool()) init(False)
+    computeComplete.setWhen(convCompute.io.computeComplete)
+    computeComplete.clearWhen(io.control === CONV_STATE.START_PA)
+
     when(convCompute.io.copyWeightDone) {
         convState.io.complete := CONV_STATE.END_PA
-    }elsewhen (io.introut){
+    }elsewhen (writeComplete & computeComplete){
         convState.io.complete := CONV_STATE.END_CU
     } otherwise {
         convState.io.complete := 0
