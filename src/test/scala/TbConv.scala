@@ -300,7 +300,8 @@ class TbConv(simConfig: SimConfig, convConfig: ConvConfig) extends Component {
 }
 
 object TbConv extends App {
-    val simConfig = SimConfig(416, 416, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 692224, false, "simData/all_weight_new.mem", "simData/test_416.mem")
+//    val simConfig = SimConfig(416, 416, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 692224, false, "simData/all_weight_new.mem", "simData/test_416.mem")
+    val simConfig = SimConfig(320, 320, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 409600, true, "simData/all_weight_new.mem", "simData/feature_real825_640_conv2_leak_stride2.mem")
     val convConfig = ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1)
     SpinalConfig(defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH)).generateVerilog(new TbConv(simConfig, convConfig))
     //    SpinalVerilog(new TbConv)

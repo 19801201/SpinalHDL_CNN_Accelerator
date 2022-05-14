@@ -71,9 +71,9 @@ class Stride(convConfig: ConvConfig) extends Component {
     //    val dataCount = io.enStride ? dataCount2 | dataCount1
     val dataCount = RegNext(channelTimes * colTimes)
 
-    val channelCnt = WaCounter(fsm.currentState === StrideEnum.STRIDE && fifo.io.push.fire, channelTimes.getWidth, channelTimes - 1)
-    val colCnt = WaCounter(channelCnt.valid, colTimes.getWidth, colTimes - 1)
-    val rowCnt = WaCounter(channelCnt.valid && colCnt.valid, rowTimes.getWidth, rowTimes - 1)
+    val channelCnt = WaCounter(fsm.currentState === StrideEnum.STRIDE && io.sData.fire, channelTimes.getWidth, channelTimes - 1)
+    val colCnt = WaCounter(channelCnt.valid && io.sData.fire, colTimes.getWidth, colTimes - 1)
+    val rowCnt = WaCounter(channelCnt.valid && colCnt.valid && io.sData.fire, rowTimes.getWidth, rowTimes - 1)
     io.complete := rowCnt.valid && colCnt.valid && channelCnt.valid
     when(fsm.currentState === StrideEnum.IDLE) {
         initCnt.clear
