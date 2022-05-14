@@ -57,14 +57,14 @@ class Stride(convConfig: ConvConfig) extends Component {
     noIoPrefix()
 
     val fsm = StrideFsm(io.start, io.complete)
-    val fifo = StreamFifo(UInt(convConfig.FEATURE_M_DATA_WIDTH bits), convConfig.FEATURE_RAM_DEPTH)
+    val fifo = StreamFifo(UInt(convConfig.FEATURE_M_DATA_WIDTH bits), convConfig.strideFifoDepth)
 
     val initCnt = WaCounter(fsm.currentState === StrideEnum.INIT, 3, 7)
     fsm.initEnd := initCnt.valid
 
     val channelTimes = RegNextWhen(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM), fsm.currentState === StrideEnum.INIT)
-    val colTimes = RegNextWhen(io.colNumIn >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM), fsm.currentState === StrideEnum.INIT)
-    val rowTimes = RegNextWhen(io.rowNumIn >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM), fsm.currentState === StrideEnum.INIT)
+    val colTimes = RegNextWhen(io.colNumIn, fsm.currentState === StrideEnum.INIT)
+    val rowTimes = RegNextWhen(io.rowNumIn, fsm.currentState === StrideEnum.INIT)
 
     //    val dataCount1 = RegNext(channelTimes * colTimes)
     //    val dataCount2 = RegNext(dataCount1 |<< 1)
@@ -81,11 +81,17 @@ class Stride(convConfig: ConvConfig) extends Component {
         colCnt.clear
         rowCnt.clear
     }
-    when(io.enStride) {
-        fifo.io.push.arbitrationFrom(io.sData.throwWhen(colCnt.count(0) || rowCnt.count(0)))
+    when(fsm.currentState === StrideEnum.STRIDE) {
+        when(io.enStride) {
+            fifo.io.push.arbitrationFrom(io.sData.throwWhen(colCnt.count(0) || rowCnt.count(0)))
+        } otherwise {
+            fifo.io.push.arbitrationFrom(io.sData)
+        }
     } otherwise {
-        fifo.io.push.arbitrationFrom(io.sData)
+        fifo.io.push.valid := False
+        io.sData.ready := False
     }
+
     fifo.io.push.payload := io.sData.payload
 
     when(fifo.io.availability > dataCount) {

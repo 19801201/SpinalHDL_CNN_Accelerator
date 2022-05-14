@@ -18,6 +18,7 @@ case class SimConfig(rowNumIn: Int,
                      convType: Int = CONV_STATE.CONV33,
                      weightMemDepth: Int,
                      featureMemDepth: Int,
+                     enStride: Boolean,
                      weightMemFileName: String,
                      featureMemFileName: String
                     ) {
@@ -134,16 +135,16 @@ case class SimInit(simConfig: SimConfig, convConfig: ConvConfig) extends BlackBo
 
 /**
  *
- * @param simConfig 仿真参数
+ * @param simConfig  仿真参数
  * @param convConfig 加速器参数
  *
  *
- * 提供两种仿真方式：
- * 1.和我们以前一样，手动配置寄存器，在initial begin里面根据state控制control信号完成仿真，这个利用了BlackBox的inline功能，将以前verilog写的TB内嵌进来，可参考被注释掉的内容
+ *                   提供两种仿真方式：
+ *                   1.和我们以前一样，手动配置寄存器，在initial begin里面根据state控制control信号完成仿真，这个利用了BlackBox的inline功能，将以前verilog写的TB内嵌进来，可参考被注释掉的内容
  *
- * 2.采用状态机的方式进行仿真，寄存器采用spinalHDL的Bits进行封装。在生成的仿真代码之后，会引出clk和reset信号，需要我们进行配置
- *   建议采用这种方式进行仿真，因为不需要我们手动去配置寄存器，避免出错。如果寄存器的位宽或位置需要改变只需要在CONV_STATE中进行改变即可，在仿真文件中不需要手动更新
- *   所有的寄存器位宽或位置会自动完成匹配
+ *                   2.采用状态机的方式进行仿真，寄存器采用spinalHDL的Bits进行封装。在生成的仿真代码之后，会引出clk和reset信号，需要我们进行配置
+ *                   建议采用这种方式进行仿真，因为不需要我们手动去配置寄存器，避免出错。如果寄存器的位宽或位置需要改变只需要在CONV_STATE中进行改变即可，在仿真文件中不需要手动更新
+ *                   所有的寄存器位宽或位置会自动完成匹配
  */
 
 class TbConv(simConfig: SimConfig, convConfig: ConvConfig) extends Component {
@@ -266,7 +267,7 @@ class TbConv(simConfig: SimConfig, convConfig: ConvConfig) extends Component {
             .whenIsActive {
                 instruction := (CONV_STATE.ROW_NUM_IN -> B(simConfig.rowNumIn), CONV_STATE.COL_NUM_IN -> B(simConfig.colNumIn), CONV_STATE.CHANNEL_IN -> B(simConfig.channelIn),
                     CONV_STATE.CHANNEL_OUT -> B(simConfig.channelOut), CONV_STATE.EN_PADDING -> simConfig.enPadding, CONV_STATE.EN_ACTIVATION -> simConfig.enActivation,
-                    CONV_STATE.Z1 -> B(simConfig.zeroDara), CONV_STATE.Z1_NUM -> B(simConfig.zeroNum), CONV_STATE.Z3 -> B(simConfig.quanZeroData), CONV_STATE.CONV_TYPE -> B(simConfig.convType), default -> false)
+                    CONV_STATE.Z1 -> B(simConfig.zeroDara), CONV_STATE.Z1_NUM -> B(simConfig.zeroNum), CONV_STATE.Z3 -> B(simConfig.quanZeroData), CONV_STATE.CONV_TYPE -> B(simConfig.convType), CONV_STATE.EN_STRIDE -> simConfig.enStride, default -> false)
                 conv.io.sData <> featureData
                 paraData.ready := False
                 when(conv.io.state === B"4'b1111") {
@@ -299,7 +300,7 @@ class TbConv(simConfig: SimConfig, convConfig: ConvConfig) extends Component {
 }
 
 object TbConv extends App {
-    val simConfig = SimConfig(416, 416, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 692224, "simData/all_weight_new.mem", "simData/test_416.mem")
+    val simConfig = SimConfig(416, 416, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 692224, false, "simData/all_weight_new.mem", "simData/test_416.mem")
     val convConfig = ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1)
     SpinalConfig(defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH)).generateVerilog(new TbConv(simConfig, convConfig))
     //    SpinalVerilog(new TbConv)

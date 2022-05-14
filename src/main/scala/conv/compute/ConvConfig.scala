@@ -56,4 +56,7 @@ case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHAN
 
     val dataGenerateConfig = DataGenerateConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_IN_NUM, FEATURE_WIDTH, KERNEL_NUM, FEATURE_RAM_DEPTH, ZERO_NUM)
 
+    //一般来说经过3*3卷积，图片尺寸不变，通道变成2倍，因此深度乘2
+    //如640*640*32 --》 640*640*64
+    val strideFifoDepth = FEATURE_RAM_DEPTH << 1
 }
