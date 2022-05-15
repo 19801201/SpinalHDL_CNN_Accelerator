@@ -1,3 +1,4 @@
+import TbCfg.{Rom, Util}
 import spinal.core._
 import conv.compute._
 import spinal.lib._
@@ -6,27 +7,27 @@ import spinal.lib.fsm._
 import scala.language.implicitConversions
 
 
-case class SimConfig(rowNumIn: Int,
-                     colNumIn: Int,
-                     channelIn: Int,
-                     channelOut: Int,
-                     enPadding: Boolean,
-                     enActivation: Boolean,
-                     zeroDara: Int,
-                     zeroNum: Int,
-                     quanZeroData: Int,
-                     convType: Int = CONV_STATE.CONV33,
-                     weightMemDepth: Int,
-                     featureMemDepth: Int,
-                     enStride: Boolean,
-                     weightMemFileName: String,
-                     featureMemFileName: String
+case class ConvSimConfig(rowNumIn: Int,
+                         colNumIn: Int,
+                         channelIn: Int,
+                         channelOut: Int,
+                         enPadding: Boolean,
+                         enActivation: Boolean,
+                         zeroDara: Int,
+                         zeroNum: Int,
+                         quanZeroData: Int,
+                         convType: Int = CONV_STATE.CONV33,
+                         weightMemDepth: Int,
+                         featureMemDepth: Int,
+                         enStride: Boolean,
+                         weightMemFileName: String,
+                         featureMemFileName: String
                     ) {
 
 }
 
 
-case class SimPara(simConfig: SimConfig) {
+case class SimPara(simConfig: ConvSimConfig) {
 
     implicit def BooleanToInt(a: Boolean) = {
         if (a) {
@@ -52,7 +53,7 @@ case class SimPara(simConfig: SimConfig) {
 
 }
 
-case class SimInit(simConfig: SimConfig, convConfig: ConvConfig) extends BlackBox {
+case class SimInit(simConfig: ConvSimConfig, convConfig: ConvConfig) extends BlackBox {
     val io = new Bundle {
         //        val para = out Bool()
         //        val control = out Bits (4 bits)
@@ -135,7 +136,7 @@ case class SimInit(simConfig: SimConfig, convConfig: ConvConfig) extends BlackBo
 
 /**
  *
- * @param simConfig  仿真参数
+ * @param ConvSimConfig  仿真参数
  * @param convConfig 加速器参数
  *
  *
@@ -147,7 +148,7 @@ case class SimInit(simConfig: SimConfig, convConfig: ConvConfig) extends BlackBo
  *                   所有的寄存器位宽或位置会自动完成匹配
  */
 
-class TbConv(simConfig: SimConfig, convConfig: ConvConfig) extends Component {
+class TbConv(simConfig: ConvSimConfig, convConfig: ConvConfig) extends Component {
 
     //    val simInit = SimInit(simConfig, convConfig)
     //    val clk = new ClockingArea(clockDomain = ClockDomain(clock = simInit.io.clk_o, reset = simInit.io.rst_o)) {
@@ -158,8 +159,8 @@ class TbConv(simConfig: SimConfig, convConfig: ConvConfig) extends Component {
     //        conv.io.introut := False
     ////        val feature = new sprom(convConfig.FEATURE_S_DATA_WIDTH, simConfig.featureMemDepth, MEM_TYPE.distributed, 0, simConfig.featureMemFileName).setDefinitionName("feature")
     ////        val weight = new sprom(convConfig.FEATURE_S_DATA_WIDTH, simConfig.weightMemDepth, MEM_TYPE.distributed, 0, simConfig.weightMemFileName).setDefinitionName("weight")
-    //        val weight = new Rom(convConfig.FEATURE_S_DATA_WIDTH,scala.math.pow(2,log2Up(simConfig.weightMemDepth)).toInt,simConfig.weightMemFileName)
-    //        val feature = new Rom(convConfig.FEATURE_S_DATA_WIDTH,scala.math.pow(2,log2Up(simConfig.featureMemDepth)).toInt,simConfig.featureMemFileName)
+    //        val weight = new TbCfg.Rom(convConfig.FEATURE_S_DATA_WIDTH,scala.math.pow(2,log2Up(simConfig.weightMemDepth)).toInt,simConfig.weightMemFileName)
+    //        val feature = new TbCfg.Rom(convConfig.FEATURE_S_DATA_WIDTH,scala.math.pow(2,log2Up(simConfig.featureMemDepth)).toInt,simConfig.featureMemFileName)
     //
     //        val paraData = Stream(UInt(convConfig.FEATURE_S_DATA_WIDTH bits))
     //        val featureData = Stream(UInt(convConfig.FEATURE_S_DATA_WIDTH bits))
@@ -301,7 +302,7 @@ class TbConv(simConfig: SimConfig, convConfig: ConvConfig) extends Component {
 
 object TbConv extends App {
 //    val simConfig = SimConfig(416, 416, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 692224, false, "simData/all_weight_new.mem", "simData/test_416.mem")
-    val simConfig = SimConfig(320, 320, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 409600, true, "simData/all_weight_new.mem", "simData/feature_real825_640_conv2_leak_stride2.mem")
+    val simConfig = ConvSimConfig(320, 320, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 409600, true, "simData/all_weight_new.mem", "simData/feature_real825_640_conv2_leak_stride2.mem")
     val convConfig = ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1)
     SpinalConfig(defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH)).generateVerilog(new TbConv(simConfig, convConfig))
     //    SpinalVerilog(new TbConv)

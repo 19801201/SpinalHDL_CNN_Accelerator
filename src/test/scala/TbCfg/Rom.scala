@@ -1,3 +1,5 @@
+package TbCfg
+
 import spinal.core._
 
 class Rom(dataWidth:Int,dataCount:Int,memPath:String) extends Component {
