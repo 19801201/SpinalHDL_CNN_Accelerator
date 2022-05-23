@@ -38,8 +38,8 @@ object CONV_STATE extends Area {
     def EN_STRIDE = 63
     def CONV_TYPE = 65 downto 64
 
-    def WEIGHT_NUM = 14 downto 0
-    def QUAN_NUM = 22 downto 15
+    def WEIGHT_NUM = 15 downto 0
+    def QUAN_NUM = 31 downto 16
 
 }
 

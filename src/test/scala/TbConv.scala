@@ -232,7 +232,6 @@ class TbConv(simConfig: ConvSimConfig, convConfig: ConvConfig) extends Component
 
         val weightNum = if (simConfig.convType == CONV_STATE.CONV33) simConfig.channelIn * simConfig.channelOut / convConfig.COMPUTE_CHANNEL_IN_NUM else simConfig.channelIn * simConfig.channelOut / (convConfig.COMPUTE_CHANNEL_IN_NUM * 8)
         val quanNum = if (simConfig.convType == CONV_STATE.CONV33) (simConfig.weightMemDepth - weightNum * 9) / 3 else (simConfig.weightMemDepth - weightNum * 8) / 3
-
         val add = Reg(Bool()) init (False)
         IDLE.whenIsActive {
             when(start) {
@@ -301,9 +300,9 @@ class TbConv(simConfig: ConvSimConfig, convConfig: ConvConfig) extends Component
 }
 
 object TbConv extends App {
-//    val simConfig = SimConfig(416, 416, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 692224, false, "simData/all_weight_new.mem", "simData/test_416.mem")
-    val simConfig = ConvSimConfig(320, 320, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 409600, true, "simData/all_weight_new.mem", "simData/feature_real825_640_conv2_leak_stride2.mem")
-    val convConfig = ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1)
+//    val simConfig = ConvSimConfig(416, 416, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 692224, false, "simData/all_weight_new.mem", "simData/test_416.mem")
+    val simConfig = ConvSimConfig(160, 160, 64, 64, true, true, 68, 1, 70, CONV_STATE.CONV33, 2352, 102400, false, "simData/weight.txt", "simData/target.txt")
+    val convConfig = ConvConfig(8, 16, 8, 12, 8192, 512, 416, 2048, 1)
     SpinalConfig(defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH)).generateVerilog(new TbConv(simConfig, convConfig))
     //    SpinalVerilog(new TbConv)
 }
