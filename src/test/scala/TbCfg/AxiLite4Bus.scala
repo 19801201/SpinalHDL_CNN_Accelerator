@@ -6,11 +6,11 @@ import spinal.lib.bus.amba4.axilite._
 
 case class AxiLite4Bus(axi: AxiLite4) {
     def reset(): Unit = {
-        axi.aw.valid #= false
-        axi.w.valid #= false
-        axi.ar.valid #= false
-        axi.r.ready #= true
-        axi.b.ready #= true
+        axi.aw.valid := False
+        axi.w.valid := False
+        axi.ar.valid := False
+        axi.r.ready := True
+        axi.b.ready := True
     }
 
     def write(address: UInt, data: Bits, start: Bool): Bool = {
