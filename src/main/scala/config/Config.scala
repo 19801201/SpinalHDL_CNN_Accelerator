@@ -10,4 +10,13 @@ object Config {
 
     val dsp2x = true
 
+    case class ImageType(){
+        val rgb = "RGB"
+        val gray = "GRAY"
+        val dataType = rgb
+    }
+    val imageType = ImageType()
+
+
+
 }

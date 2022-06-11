@@ -30,7 +30,7 @@ class Concat(concatConfig: ConcatConfig) extends Component {
 
     val channelTimes = RegNext(channelTimes0 + channelTimes1)
 
-    val channelCnt = WaCounter(dataPort.sData.fire && (fsm.currentState === ShapeStateMachineEnum.COMPUTE), channelTimes.getWidth, channelTimes - 1)
+    val channelCnt = WaCounter((dataPort.sData.fire || sData1.fire) && (fsm.currentState === ShapeStateMachineEnum.COMPUTE), channelTimes.getWidth, channelTimes - 1)
     val columnCnt = WaCounter(channelCnt.valid, concatConfig.FEATURE_WIDTH, dataPort.colNumIn - 1)
     val rowCnt = WaCounter(fsm.currentState === ShapeStateMachineEnum.LAST, concatConfig.FEATURE_WIDTH, dataPort.rowNumIn - 1)
 
