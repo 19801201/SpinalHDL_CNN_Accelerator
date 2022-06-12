@@ -73,6 +73,10 @@ class Instruction extends Component {
         gen
     }
     }
+//    val readAddrReg = bus.newReg(doc = "dma读地址")
+//    val readAddr = readAddrReg.field(32 bits, WO, doc =  " dma读地址").setName("convFirstLayerReadAddr").asOutput()
+//    val readLenReg = bus.newReg(doc = "dma读长度，不以字节为单位，实际长度")
+//    val readLen = readLenReg.field(32 bits, WO, doc =  " dma读长度").setName("convFirstLayerReadLen").asOutput()
     //    (0 until 2).foreach(i => {
     //        val writeAddrReg = bus.newReg(doc = "dma写地址")
     //        val writeAddr = writeAddrReg.field(32 bits, WO, doc = s(i) + " dma写地址").setName(s(i) + "writeAddr").asOutput()

@@ -16,7 +16,7 @@ class ChannelIncr(convConfig: ConvConfig) extends Component {
         })
     } else {
         if (imageType.dataType == imageType.rgb) {
-            3 * convConfig.DATA_WIDTH
+            4 * convConfig.DATA_WIDTH
         } else if (imageType.dataType == imageType.gray) {
             1 * convConfig.DATA_WIDTH
         } else {

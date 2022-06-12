@@ -1,11 +1,12 @@
 package conv.compute
 
-import conv.dataGenerate.DataGenerate
+import conv.dataGenerate.{ChannelIncr, DataGenerate, Focus}
 import spinal.core._
 import spinal.lib._
 import wa.xip.math.DSP
 import wa.xip.memory.xpm.{FIFO_READ_MODE, MEM_TYPE, XPM_FIFO_SYNC_CONFIG}
 import wa.{WaXpmSyncFifo, xAdd, xMul}
+import config.Config._
 
 class ConvCompute(convConfig: ConvConfig) extends Component {
 
@@ -14,6 +15,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val startCu = in Bool()
         val sParaData = slave Stream UInt(convConfig.WEIGHT_S_DATA_WIDTH bits)
         val sFeatureData = slave Stream UInt(convConfig.FEATURE_S_DATA_WIDTH bits)
+        val sFeatureFirstLayerData = slave Stream UInt((if (imageType.dataType == imageType.rgb) 4 * convConfig.DATA_WIDTH else 1 * convConfig.DATA_WIDTH) bits)
         val mFeatureData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits)
         val mNormData = master(Stream(Vec(SInt(convConfig.addChannelTimesWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM))) //调试使用
         val copyWeightDone = out Bool()
@@ -31,7 +33,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val quanNum = in UInt (log2Up(convConfig.QUAN_S_DATA_DEPTH) bits)
         val quanZeroData = in UInt (8 bits)
         val enStride = in Bool()
-
+        val firstLayer = in Bool()
         val convType = in Bits (2 bits)
     }
     noIoPrefix()
@@ -41,8 +43,27 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         convType := io.convType
     }
 
+    val channelIncr = new ChannelIncr(convConfig)
+    if(enFocus){
+        val focus = new Focus(convConfig)
+        focus.io.sData <> io.sFeatureFirstLayerData
+        focus.io.mData <> channelIncr.io.sData
+        focus.io.start := io.startCu & io.firstLayer
+        //因为focus会让图片尺寸缩小一半，而参数传进来的是卷积用的尺寸，所以进入focus的图片尺寸需要乘2
+        focus.io.rowNumIn := (io.rowNumIn << 1).resized
+        focus.io.colNumIn := (io.colNumIn << 1).resized
+    } else {
+        channelIncr.io.sData <> io.sFeatureFirstLayerData
+    }
     val dataGenerate = new DataGenerate(convConfig.dataGenerateConfig)
-    dataGenerate.io.sData <> io.sFeatureData
+    when(io.firstLayer) {
+        dataGenerate.io.sData <> channelIncr.io.mData
+        io.sFeatureData.ready := False
+    } otherwise {
+        dataGenerate.io.sData <> io.sFeatureData
+        channelIncr.io.mData.ready := False
+    }
+
     dataGenerate.io.start <> io.startCu
     dataGenerate.io.rowNumIn <> io.rowNumIn
     dataGenerate.io.colNumIn <> io.colNumIn
@@ -61,8 +82,8 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     computeCtrl.io.activationEn <> io.enActivation
 
     /** *********************************************************** */
-//    computeCtrl.io.mDataReady <> io.mFeatureData.ready
-//    computeCtrl.io.mDataValid <> io.mFeatureData.valid
+    //    computeCtrl.io.mDataReady <> io.mFeatureData.ready
+    //    computeCtrl.io.mDataValid <> io.mFeatureData.valid
 
     /** *********************************************************** */
     computeCtrl.io.convType <> convType
@@ -144,7 +165,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
             //            mul.io.A <> loadWeight.io.weightRead(i).data(((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8) @@ U"8'd0" @@ loadWeight.io.weightRead(i).data(((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
             //            mul.io.B <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
             //            mul.io.P <> mulFeatureWeightData(i)(j)(k)
-            val mul = DSP("mulWeight", myClockDomain = myClockDomain,genericTcl = i == 0)
+            val mul = DSP("mulWeight", myClockDomain = myClockDomain, genericTcl = i == 0)
             mul.a <> loadWeight.io.weightRead(i).data(((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
             mul.d <> loadWeight.io.weightRead(i).data(((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((2 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
             mul.b <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
@@ -154,7 +175,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         gen
     }) else Array.tabulate(convConfig.KERNEL_NUM, convConfig.COMPUTE_CHANNEL_OUT_NUM / 4, convConfig.COMPUTE_CHANNEL_IN_NUM)((i, j, k) => {
         def gen = {
-            val mul = DSP("mulWeight", myClockDomain = myClockDomain,genericTcl = i == 0)
+            val mul = DSP("mulWeight", myClockDomain = myClockDomain, genericTcl = i == 0)
             mul.a <> loadWeight.io.weightRead(i).data(((4 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((4 * j) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
             mul.d <> loadWeight.io.weightRead(i).data(((4 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((4 * j + 1) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
             mul.a1 <> loadWeight.io.weightRead(i).data(((4 * j + 2) * convConfig.COMPUTE_CHANNEL_IN_NUM + k + 1) * 8 - 1 downto ((4 * j + 2) * convConfig.COMPUTE_CHANNEL_IN_NUM + k) * 8)
@@ -162,6 +183,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
             mul.b <> featureMemOutData(i)((k + 1) * 8 - 1 downto 8 * k)
             mul.p.subdivideIn(2 slices) <> Vec(mulFeatureWeightData(i)(2 * j)(k), mulFeatureWeightData(i)(2 * j + 1)(k))
         }
+
         gen
     })
     val addKernelData = Vec(Vec(SInt(convConfig.addKernelWidth bits), convConfig.COMPUTE_CHANNEL_IN_NUM), convConfig.COMPUTE_CHANNEL_OUT_NUM / 2)
@@ -218,7 +240,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     quan.io.scaleIn <> loadWeight.io.scaleRead.data
     quan.io.shiftIn <> loadWeight.io.shiftRead.data
     quan.io.zeroIn <> io.quanZeroData
-//    quan.io.dataOut <> io.mFeatureData.payload
+    //    quan.io.dataOut <> io.mFeatureData.payload
     quan.io.activationEn <> io.enActivation
 
     val stride = new Stride(convConfig)

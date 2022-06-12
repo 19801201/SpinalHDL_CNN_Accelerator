@@ -37,6 +37,7 @@ object CONV_STATE extends Area {
     def Z3 = 62 downto 55
     def EN_STRIDE = 63
     def CONV_TYPE = 65 downto 64
+    def FIRST_LAYER = 66
 
     def WEIGHT_NUM = 15 downto 0
     def QUAN_NUM = 31 downto 16

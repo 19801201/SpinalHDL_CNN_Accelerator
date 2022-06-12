@@ -9,8 +9,10 @@ import wa.dma.{DmaConfig, DmaRead, DmaWrite}
 
 
 class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
+    val firstLayerWidth = if (imageType.dataType == imageType.rgb) 4 * convConfig.DATA_WIDTH else 1 * convConfig.DATA_WIDTH
     val io = new Bundle {
         val convSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), convConfig.FEATURE_S_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+        val convFirstLayerSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), firstLayerWidth, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
         val convMData = master(Axi4WriteOnly(Axi4Config(log2Up(DDRSize), convConfig.FEATURE_M_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
         val shapeSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
         val shapeSData1 = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
@@ -19,6 +21,7 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
     }
     noIoPrefix()
     Axi4SpecRenamer(io.convSData)
+    Axi4SpecRenamer(io.convFirstLayerSData)
     Axi4SpecRenamer(io.convMData)
     Axi4SpecRenamer(io.shapeSData)
     Axi4SpecRenamer(io.shapeSData1)
@@ -28,8 +31,11 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
     val convDmaWrite = new DmaWrite(DmaConfig(log2Up(DDRSize), convConfig.FEATURE_S_DATA_WIDTH, burstSize))
     val convDmaRead = new DmaRead(DmaConfig(log2Up(DDRSize), convConfig.FEATURE_M_DATA_WIDTH, burstSize))
 
+    val convFirstLayerDmaRead = new DmaRead(DmaConfig(log2Up(DDRSize), firstLayerWidth, burstSize))
+
     convDmaWrite.io.M_AXI_S2MM <> io.convMData
     convDmaRead.io.M_AXI_MM2S <> io.convSData
+    convFirstLayerDmaRead.io.M_AXI_MM2S <> io.convFirstLayerSData
 
     val shapeDmaWrite = new DmaWrite(DmaConfig(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, burstSize))
     val shapeDmaRead = new DmaRead(DmaConfig(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, burstSize))
@@ -41,9 +47,11 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
 
     val conv = new Conv(convConfig)
     conv.io.sData <> convDmaRead.io.M_AXIS_MM2S
+    conv.io.sFeatureFirstLayerData <> convFirstLayerDmaRead.io.M_AXIS_MM2S
     convDmaWrite.io.M_AXIS_S2MM <> conv.io.mData
     conv.io.dmaWriteValid <> convDmaWrite.io.cmd.valid
     conv.io.dmaReadValid <> convDmaRead.io.cmd.valid
+    conv.io.dmaFirstLayerReadValid <> convFirstLayerDmaRead.io.cmd.valid
     conv.io.introut <> convDmaWrite.io.cmd.introut
 
     val shape = new Shape(shapeConfig)
@@ -72,6 +80,8 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
     register.dma(0)(1)(0).asUInt <> convDmaWrite.io.cmd.len
     register.dma(0)(0)(1).asUInt <> convDmaRead.io.cmd.addr
     register.dma(0)(1)(1).asUInt <> convDmaRead.io.cmd.len
+    register.dma(0)(0)(1).asUInt <> convFirstLayerDmaRead.io.cmd.addr
+    register.dma(0)(1)(1).asUInt <> convFirstLayerDmaRead.io.cmd.len
 
     register.dma(1)(0)(0).asUInt <> shapeDmaWrite.io.cmd.addr
     register.dma(1)(1)(0).asUInt <> shapeDmaWrite.io.cmd.len
