@@ -98,7 +98,8 @@ class DmaRead(dmaReadConfig: DmaConfig) extends Component {
     } otherwise {
         aValid := False
     }
-    io.M_AXI_MM2S.ar.valid := aValid
+    val valid = Reg(Bool()) init False setWhen aValid clearWhen io.M_AXI_MM2S.ar.ready
+    io.M_AXI_MM2S.ar.valid := valid
 
 
 }

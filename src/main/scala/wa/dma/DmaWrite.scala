@@ -115,7 +115,8 @@ class DmaWrite(dmaWriteConfig: DmaConfig) extends Component {
     } otherwise {
         aValid := False
     }
-    io.M_AXI_S2MM.aw.valid := aValid
+    val valid = Reg(Bool()) init False setWhen aValid clearWhen io.M_AXI_S2MM.aw.ready
+    io.M_AXI_S2MM.aw.valid := valid
 
 
 }

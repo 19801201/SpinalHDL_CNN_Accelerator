@@ -94,5 +94,5 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
 }
 
 object Npu extends App {
-    SpinalVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 640, 10, 1024)))
+    SpinalVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 416, 10, 1024)))
 }
