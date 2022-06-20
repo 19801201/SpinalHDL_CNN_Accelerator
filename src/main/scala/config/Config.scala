@@ -8,7 +8,7 @@ object Config {
     val registerAddrSize = 1 MiB
     val burstSize = 32
 
-    val dsp2x = true
+    val dsp2x = false
 
     case class ImageType() {
         val rgb = "RGB"
@@ -18,6 +18,6 @@ object Config {
 
     val imageType = ImageType()
 
-    val enFocus = true
+    val enFocus = false
 
 }

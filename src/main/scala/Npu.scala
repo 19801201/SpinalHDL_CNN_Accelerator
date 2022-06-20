@@ -1,3 +1,5 @@
+import config.Config
+import misc.TotalTcl
 import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.amba4.axi._
@@ -7,9 +9,11 @@ import conv.compute._
 import shape._
 import wa.dma.{DmaConfig, DmaRead, DmaWrite}
 
+import java.io.File
+
 
 class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
-    val firstLayerWidth = if (imageType.dataType == imageType.rgb) 4 * convConfig.DATA_WIDTH else 1 * convConfig.DATA_WIDTH
+    val firstLayerWidth = if (imageType.dataType == imageType.rgb) 4 * convConfig.DATA_WIDTH else 32
     val io = new Bundle {
         val convSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), convConfig.FEATURE_S_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
         val convFirstLayerSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), firstLayerWidth, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
@@ -47,7 +51,7 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
 
     val conv = new Conv(convConfig)
     conv.io.sData <> convDmaRead.io.M_AXIS_MM2S
-    conv.io.sFeatureFirstLayerData <> convFirstLayerDmaRead.io.M_AXIS_MM2S
+    StreamWidthAdapter(convFirstLayerDmaRead.io.M_AXIS_MM2S, conv.io.sFeatureFirstLayerData)
     convDmaWrite.io.M_AXIS_S2MM <> conv.io.mData
     conv.io.dmaWriteValid <> convDmaWrite.io.cmd.valid
     conv.io.dmaReadValid <> convDmaRead.io.cmd.valid
@@ -81,7 +85,12 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
     register.dma(0)(0)(1).asUInt <> convDmaRead.io.cmd.addr
     register.dma(0)(1)(1).asUInt <> convDmaRead.io.cmd.len
     register.dma(0)(0)(1).asUInt <> convFirstLayerDmaRead.io.cmd.addr
-    register.dma(0)(1)(1).asUInt <> convFirstLayerDmaRead.io.cmd.len
+    if (Config.imageType.dataType == Config.imageType.gray) {
+        convFirstLayerDmaRead.io.cmd.len := (register.dma(0)(1)(1).asUInt >> 2).resize(32 bits)
+    } else {
+        register.dma(0)(1)(1).asUInt <> convFirstLayerDmaRead.io.cmd.len
+    }
+
 
     register.dma(1)(0)(0).asUInt <> shapeDmaWrite.io.cmd.addr
     register.dma(1)(1)(0).asUInt <> shapeDmaWrite.io.cmd.len
@@ -95,4 +104,5 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
 
 object Npu extends App {
     SpinalVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 416, 10, 1024)))
+    TotalTcl(Config.filePath + File.separator + "tcl", Config.filePath).genTotalTcl
 }
