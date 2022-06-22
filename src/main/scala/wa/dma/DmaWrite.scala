@@ -15,7 +15,7 @@ class DmaWrite(dmaWriteConfig: DmaConfig) extends Component {
         val cmd = DmaCmd()
     }
     noIoPrefix()
-
+    val trans = Reg(Bool()) init False setWhen (io.cmd.valid) clearWhen (io.cmd.introut)
     when(io.M_AXI_S2MM.aw.fire) {
         io.M_AXI_S2MM.aw.burst := B"2'b01"
         io.M_AXI_S2MM.aw.size := dmaWriteConfig.awSize
@@ -44,7 +44,7 @@ class DmaWrite(dmaWriteConfig: DmaConfig) extends Component {
     }
     val cnt = Reg(UInt(32 bits)) init 0
     val cntBrust = Reg(UInt(32 bits)) init 0
-    when(io.M_AXI_S2MM.w.fire) {
+    when(io.M_AXI_S2MM.w.fire && trans) {
         when(cntBrust === dmaWriteConfig.burstSize - 1 || io.cmd.introut) {
             cntBrust := 0
         } otherwise {
@@ -53,7 +53,7 @@ class DmaWrite(dmaWriteConfig: DmaConfig) extends Component {
 
     }
     val cntLast = Reg(UInt(32 bits)) init 0
-    when(io.M_AXI_S2MM.w.fire) {
+    when(io.M_AXI_S2MM.w.fire && trans) {
         when(io.cmd.introut) {
             cntLast := 0
         } otherwise {
@@ -107,7 +107,7 @@ class DmaWrite(dmaWriteConfig: DmaConfig) extends Component {
     } otherwise {
         cntAv := cntAv + 1
     }
-    val trans = Reg(Bool()) init False setWhen (io.cmd.valid) clearWhen (io.cmd.introut)
+
     when(RegNext(io.cmd.valid)) {
         aValid := True
     } elsewhen (cntAv === dmaWriteConfig.burstSize - 1 && cnt < len && trans) {
@@ -115,11 +115,11 @@ class DmaWrite(dmaWriteConfig: DmaConfig) extends Component {
     } otherwise {
         aValid := False
     }
-//    val valid = Reg(Bool()) init False setWhen aValid clearWhen io.M_AXI_S2MM.aw.ready
+    //    val valid = Reg(Bool()) init False setWhen aValid clearWhen io.M_AXI_S2MM.aw.ready
     val valid = Reg(Bool()) init False
-    when(aValid){
+    when(aValid) {
         valid.set()
-    } elsewhen (io.M_AXI_S2MM.aw.ready){
+    } elsewhen (io.M_AXI_S2MM.aw.ready) {
         valid.clear()
     }
     io.M_AXI_S2MM.aw.valid := valid

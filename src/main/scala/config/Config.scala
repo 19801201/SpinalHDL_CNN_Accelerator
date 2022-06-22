@@ -20,4 +20,5 @@ object Config {
 
     val enFocus = false
 
+    val useXilinxDma = true
 }
