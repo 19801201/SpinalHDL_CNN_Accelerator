@@ -105,9 +105,12 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
             val shapeSDataCmd = Cmd() setName("shapeSDataCmd")
             val shapeSData1Cmd = Cmd() setName("shapeSData1Cmd")
             val shapeMDataCmd = Cmd() setName("shapeMDataCmd")
+            val convMLast = out Bool() setName("convMLast")
 
         }
         noIoPrefix()
+
+        conv.io.last <> io.convMLast
 
         io.convMDataCmd.cmd := register.dma(0)(0)(0) ## register.dma(0)(1)(0)
         io.convMDataCmd.valid := conv.io.dmaWriteValid

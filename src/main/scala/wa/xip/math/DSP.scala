@@ -338,7 +338,7 @@ object DSP {
         val tclHeader = new PrintWriter(new File(filePath + File.separator + "tcl" + File.separator + s"generate$componentName.tcl"))
         tclHeader.write(createDspCmd)
         tclHeader.write("\r\n")
-        tclHeader.write(s"set_property generate_synth_checkpoint 0 [get_files $componentName.xci] \n")
+//        tclHeader.write(s"set_property generate_synth_checkpoint 0 [get_files $componentName.xci] \n")
         tclHeader.close()
     }
 

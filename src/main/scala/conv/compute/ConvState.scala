@@ -102,6 +102,7 @@ case class ConvState(convConfig: ConvConfig) extends Component {
         val sign = out(Reg(Bits(4 bits)))
         val dmaReadValid = out Bool()
         val dmaWriteValid = out Bool()
+        val softReset = out Bool()
     }
     noIoPrefix()
     val fsm = ConvStateFsm(io.control, io.complete)
@@ -138,6 +139,12 @@ case class ConvState(convConfig: ConvConfig) extends Component {
         io.sign := CONV_STATE.IDLE_SIGN
         io.dmaReadValid.clear()
         io.dmaWriteValid.clear()
+    }
+
+    when(fsm.currentState === ConvStateEnum.COMPUTE_IRQ && fsm.nextState === ConvStateEnum.IDLE){
+        io.softReset := True
+    } otherwise{
+        io.softReset := False
     }
 
 

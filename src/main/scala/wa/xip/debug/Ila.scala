@@ -35,7 +35,7 @@ object Ila {
             tclHeader.write(s"set_property CONFIG.C_PROBE${probeIndex}_WIDTH {${probeWidth(probeIndex)}} ")
         }
         tclHeader.write(s"] [get_ips $componentName] \n")
-        tclHeader.write(s"set_property generate_synth_checkpoint 0 [get_files $componentName.xci] \n")
+//        tclHeader.write(s"set_property generate_synth_checkpoint 0 [get_files $componentName.xci] \n")
         tclHeader.close()
     }
     def apply(probeWidth: List[Int], componentName: String, sampleDepth: Int = 1024) ={

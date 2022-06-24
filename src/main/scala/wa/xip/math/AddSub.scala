@@ -67,7 +67,7 @@ object AddSub {
         tclHeader.write(s"CONFIG.Out_Width {$P_WIDTH} ")
         tclHeader.write(s"CONFIG.Latency {$PIPELINE_STAGE} ")
         tclHeader.write(s"] [get_ips $componentName] \n")
-        tclHeader.write(s"set_property generate_synth_checkpoint 0 [get_files $componentName.xci] \n")
+//        tclHeader.write(s"set_property generate_synth_checkpoint 0 [get_files $componentName.xci] \n")
         tclHeader.close()
 
 

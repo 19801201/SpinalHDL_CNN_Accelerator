@@ -22,6 +22,7 @@ class Conv(convConfig: ConvConfig) extends Component {
         val dmaWriteValid = out Bool()
 
         val introut = in Bool()
+        val last = out Bool()
     }
     noIoPrefix()
 
@@ -32,27 +33,29 @@ class Conv(convConfig: ConvConfig) extends Component {
     val para = Reg(Bool()) init False setWhen (convState.io.sign === CONV_STATE.PARA_SIGN) clearWhen (convState.io.sign =/= CONV_STATE.PARA_SIGN)
     val compute = Reg(Bool()) init False setWhen (convState.io.sign === CONV_STATE.COMPUTE_SIGN) clearWhen (convState.io.sign =/= CONV_STATE.COMPUTE_SIGN)
 
-//    val paraInstruction = io.instruction(0)
+    val paraInstruction = io.instruction(0)
     val computeInstruction = io.instruction.reverse.reduceRight(_ ## _)
 
-//    val paraInstructionReg = Reg(Bits(32 bits)) init 0
-//    val computeInstructionReg = Reg(Bits(computeInstruction.getWidth bits)) init 0
-    val computeInstructionReg = RegNext(computeInstruction) init 0
+    val paraInstructionReg = Reg(Bits(32 bits)) init 0
+    val computeInstructionReg = Reg(Bits(computeInstruction.getWidth bits)) init 0
+//    val computeInstructionReg = RegNext(computeInstruction) init 0
 
-//    when(convState.io.sign === CONV_STATE.PARA_SIGN) {
-//        paraInstructionReg := paraInstruction
-//        computeInstructionReg := computeInstructionReg
-//    } elsewhen (convState.io.sign === CONV_STATE.COMPUTE_SIGN) {
-//        paraInstructionReg := paraInstructionReg
-//        computeInstructionReg := computeInstruction
-//    } otherwise {
-//        paraInstructionReg := paraInstructionReg
-//        computeInstructionReg := computeInstructionReg
-//    }
+    when(convState.io.sign === CONV_STATE.PARA_SIGN) {
+        paraInstructionReg := paraInstruction
+        computeInstructionReg := computeInstructionReg
+    } elsewhen (convState.io.sign === CONV_STATE.COMPUTE_SIGN) {
+        paraInstructionReg := paraInstructionReg
+        computeInstructionReg := computeInstruction
+    } otherwise {
+        paraInstructionReg := paraInstructionReg
+        computeInstructionReg := computeInstructionReg
+    }
 
     val convCompute = new ConvCompute(convConfig)
+    convCompute.io.softReset :=  Delay(convState.io.softReset,2)
     convCompute.io.startPa := Delay(para, 3)
     convCompute.io.startCu := Delay(compute, 3)
+    convCompute.io.last <> io.last
 
     convCompute.io.sFeatureFirstLayerData <> io.sFeatureFirstLayerData
 
@@ -69,10 +72,10 @@ class Conv(convConfig: ConvConfig) extends Component {
     convCompute.io.enStride := computeInstructionReg(CONV_STATE.EN_STRIDE)
     convCompute.io.firstLayer := computeInstructionReg(CONV_STATE.FIRST_LAYER)
 
-//    convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
-    convCompute.io.weightNum := computeInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
-//    convCompute.io.quanNum := paraInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
-    convCompute.io.quanNum := computeInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
+    convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
+//    convCompute.io.weightNum := computeInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
+    convCompute.io.quanNum := paraInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
+//    convCompute.io.quanNum := computeInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
 
 
     (convState.io.dmaReadValid & (!computeInstructionReg(CONV_STATE.FIRST_LAYER))) <> io.dmaReadValid
@@ -82,15 +85,15 @@ class Conv(convConfig: ConvConfig) extends Component {
 
     val writeComplete = Reg(Bool()) init(False)
     writeComplete.setWhen(io.introut)
-    writeComplete.clearWhen(io.control === CONV_STATE.START_PA)
+    writeComplete.clearWhen(io.control === CONV_STATE.END_IRQ)
 
     val computeComplete = Reg(Bool()) init(False)
     computeComplete.setWhen(convCompute.io.computeComplete)
-    computeComplete.clearWhen(io.control === CONV_STATE.START_PA)
+    computeComplete.clearWhen(io.control === CONV_STATE.END_IRQ)
 
     when(convCompute.io.copyWeightDone) {
         convState.io.complete := CONV_STATE.END_PA
-    }elsewhen (writeComplete & computeComplete){
+    }elsewhen (computeComplete && writeComplete){
         convState.io.complete := CONV_STATE.END_CU
     } otherwise {
         convState.io.complete := 0

@@ -53,6 +53,7 @@ class Stride(convConfig: ConvConfig) extends Component {
         val colNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
         val channelOut = in UInt (convConfig.CHANNEL_WIDTH bits)
         val start = in Bool()
+        val last = out Bool()
     }
     noIoPrefix()
 
@@ -74,7 +75,7 @@ class Stride(convConfig: ConvConfig) extends Component {
     val channelCnt = WaCounter(fsm.currentState === StrideEnum.STRIDE && io.sData.fire, channelTimes.getWidth, channelTimes - 1)
     val colCnt = WaCounter(channelCnt.valid && io.sData.fire, colTimes.getWidth, colTimes - 1)
     val rowCnt = WaCounter(channelCnt.valid && colCnt.valid && io.sData.fire, rowTimes.getWidth, rowTimes - 1)
-    io.complete := rowCnt.valid && colCnt.valid && channelCnt.valid
+    io.complete := rowCnt.valid && colCnt.valid && channelCnt.valid && io.sData.fire
     when(fsm.currentState === StrideEnum.IDLE) {
         initCnt.clear
         channelCnt.clear
@@ -101,9 +102,23 @@ class Stride(convConfig: ConvConfig) extends Component {
     }
 
     fifo.io.pop <> io.mData
+    val colOutTimes = Reg(UInt(io.colNumIn.getWidth bits))
+    val rowOutTimes = Reg(UInt(io.rowNumIn.getWidth bits))
+    when(io.enStride) {
+        colOutTimes := (colTimes >> 1).resized
+        rowOutTimes := (rowTimes >> 1).resized
+    } otherwise{
+        colOutTimes := colTimes
+        rowOutTimes := rowTimes
+    }
+    val channelOutCnt = WaCounter(io.mData.fire, channelTimes.getWidth, channelTimes - 1)
+    val colOutCnt = WaCounter(channelOutCnt.valid && io.mData.fire, colOutTimes.getWidth, colOutTimes - 1)
+    val rowOutCnt = WaCounter(channelOutCnt.valid && colOutCnt.valid && io.mData.fire, rowOutTimes.getWidth, rowOutTimes - 1)
+    io.last := channelOutCnt.valid && colOutCnt.valid && rowOutCnt.valid
+
 }
 //
-//object Stride extends App {
-//    SpinalVerilog(new Stride(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1)))
-//}
+object Stride extends App {
+    SpinalVerilog(new Stride(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1)))
+}
 

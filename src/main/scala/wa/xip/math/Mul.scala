@@ -93,7 +93,7 @@ object Mul {
         tclHeader.write(s"CONFIG.OutputWidthLow {$outLsb} ")
         tclHeader.write(s"CONFIG.PipeStages {$PIPELINE_STAGE} ")
         tclHeader.write(s"] [get_ips $componentName] \n")
-        tclHeader.write(s"set_property generate_synth_checkpoint 0 [get_files $componentName.xci] \n")
+//        tclHeader.write(s"set_property generate_synth_checkpoint 0 [get_files $componentName.xci] \n")
         tclHeader.close()
     }
 
