@@ -13,7 +13,7 @@ class Conv(convConfig: ConvConfig) extends Component {
         val sFeatureFirstLayerData = slave Stream UInt((if (imageType.dataType == imageType.rgb) 4 * convConfig.DATA_WIDTH else 1 * convConfig.DATA_WIDTH) bits)
         val mData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits)
         //        val start = in Bool()
-        val instruction = in Vec(Bits(32 bits), 3)
+        val instruction = in Vec(Bits(32 bits), 4)
         val control = in Bits (4 bits)
         val state = out Bits (4 bits)
 
@@ -33,12 +33,12 @@ class Conv(convConfig: ConvConfig) extends Component {
     val para = Reg(Bool()) init False setWhen (convState.io.sign === CONV_STATE.PARA_SIGN) clearWhen (convState.io.sign =/= CONV_STATE.PARA_SIGN)
     val compute = Reg(Bool()) init False setWhen (convState.io.sign === CONV_STATE.COMPUTE_SIGN) clearWhen (convState.io.sign =/= CONV_STATE.COMPUTE_SIGN)
 
-    val paraInstruction = io.instruction(0)
+    val paraInstruction = io.instruction.reverse.reduceRight(_ ## _)
     val computeInstruction = io.instruction.reverse.reduceRight(_ ## _)
 
-    val paraInstructionReg = Reg(Bits(32 bits)) init 0
+    val paraInstructionReg = Reg(Bits(paraInstruction.getWidth bits)) init 0
     val computeInstructionReg = Reg(Bits(computeInstruction.getWidth bits)) init 0
-//    val computeInstructionReg = RegNext(computeInstruction) init 0
+    //    val computeInstructionReg = RegNext(computeInstruction) init 0
 
     when(convState.io.sign === CONV_STATE.PARA_SIGN) {
         paraInstructionReg := paraInstruction
@@ -52,7 +52,7 @@ class Conv(convConfig: ConvConfig) extends Component {
     }
 
     val convCompute = new ConvCompute(convConfig)
-    convCompute.io.softReset :=  Delay(convState.io.softReset,2)
+    convCompute.io.softReset := Delay(convState.io.softReset, 2)
     convCompute.io.startPa := Delay(para, 3)
     convCompute.io.startCu := Delay(compute, 3)
     convCompute.io.last <> io.last
@@ -73,9 +73,9 @@ class Conv(convConfig: ConvConfig) extends Component {
     convCompute.io.firstLayer := computeInstructionReg(CONV_STATE.FIRST_LAYER)
 
     convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
-//    convCompute.io.weightNum := computeInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
+    //    convCompute.io.weightNum := computeInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
     convCompute.io.quanNum := paraInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
-//    convCompute.io.quanNum := computeInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
+    //    convCompute.io.quanNum := computeInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
 
 
     (convState.io.dmaReadValid & (!computeInstructionReg(CONV_STATE.FIRST_LAYER))) <> io.dmaReadValid
@@ -83,23 +83,23 @@ class Conv(convConfig: ConvConfig) extends Component {
     convState.io.dmaWriteValid <> io.dmaWriteValid
 
 
-    val writeComplete = Reg(Bool()) init(False)
+    val writeComplete = Reg(Bool()) init (False)
     writeComplete.setWhen(io.introut)
     writeComplete.clearWhen(io.control === CONV_STATE.END_IRQ)
 
-    val computeComplete = Reg(Bool()) init(False)
+    val computeComplete = Reg(Bool()) init (False)
     computeComplete.setWhen(convCompute.io.computeComplete)
     computeComplete.clearWhen(io.control === CONV_STATE.END_IRQ)
 
     when(convCompute.io.copyWeightDone) {
         convState.io.complete := CONV_STATE.END_PA
-    }elsewhen (computeComplete && writeComplete){
+    } elsewhen (computeComplete && writeComplete) {
         convState.io.complete := CONV_STATE.END_CU
     } otherwise {
         convState.io.complete := 0
     }
 
-    val dest = Reg(Bits(2 bits)) init 0
+    val dest = Reg(Bits(2 bits)) init 3
     when(io.control === CONV_STATE.START_PA) {
         dest := 0
     } elsewhen (io.control === CONV_STATE.START_CU) {
