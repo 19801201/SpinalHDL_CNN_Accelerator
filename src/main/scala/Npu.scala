@@ -162,6 +162,7 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
 object Npu extends App {
     //    SpinalVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 416, 10, 1024)))
     //    TotalTcl(Config.filePath + File.separator + "tcl", Config.filePath).genTotalTcl
-    SpinalConfig(targetDirectory = Config.filePath + File.separator + "rtl").generateVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 416, 10, 1024)))
+    val clockCfg = ClockDomainConfig(resetKind = SYNC,resetActiveLevel = HIGH)
+    SpinalConfig(defaultConfigForClockDomains = clockCfg,targetDirectory = Config.filePath + File.separator + "rtl").generateVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 416, 10, 1024)))
     TotalTcl(Config.filePath + File.separator + "tcl", Config.filePath).genTotalTcl
 }

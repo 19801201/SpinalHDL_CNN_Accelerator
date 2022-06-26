@@ -131,7 +131,7 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
 
     fsm.waitEnd := channelCnt.valid && columnCnt.valid
     fsm.wrEnd := channelCnt.valid && columnCnt.valid
-    fsm.endEnd := rowCnt.valid && channelCnt.valid && columnCnt.valid
+    fsm.endEnd := rowCnt.valid
     fsm.wait2 := rowCnt.count < 1
     when(fsm.currentState === FeatureGenerateEnum.WAIT || fsm.currentState === FeatureGenerateEnum.WR) {
         io.sData.ready := True
