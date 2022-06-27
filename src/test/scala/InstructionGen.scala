@@ -18,7 +18,7 @@ class InstructionGen(simConfig: ConvSimConfig, convConfig: ConvConfig) extends C
 }
 
 object InstructionGen extends App {
-    val simConfig = ConvSimConfig(416, 416, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 692224, false, false, "simData/all_weight_new.mem", "simData/test_416.mem")
+    val simConfig = ConvSimConfig(416, 416, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 692224, false, false, 1114133,"simData/all_weight_new.mem", "simData/test_416.mem")
     //    val simConfig = ConvSimConfig(160, 160, 64, 64, true, true, 68, 1, 70, CONV_STATE.CONV33, 4704, 204800, false, false,"simData/conv3/conv3_weight.coe", "simData/conv3/out_api_conv2_leak_stride2.coe")
     val convConfig = ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1)
     //     val a = new  InstructionGen(simConfig, convConfig)

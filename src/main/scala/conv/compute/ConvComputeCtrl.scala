@@ -172,9 +172,9 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     val biasDelayCount = normDelayCount - 1
     val scaleDealyCount = 3
     val shiftDealyCount = 1
-    val activationDealyCount = 7
-    val mValidDelayCountActivation = normDelayCount + 1 + scaleDealyCount + shiftDealyCount + activationDealyCount + 2
-    val mValidDelayCountNoActivation = biasDelayCount + scaleDealyCount + shiftDealyCount + 2
+    val activationDealyCount = 8
+    val mValidDelayCountActivation = normDelayCount + 2 + scaleDealyCount + shiftDealyCount + activationDealyCount + 2
+    val mValidDelayCountNoActivation = normDelayCount + 2 + scaleDealyCount + shiftDealyCount + 2
     io.normPreValid := Delay(channelTimesAdd, normDelayCount - 1)
     val normValidTemp = Reg(Bool()) init False
     setClear(normValidTemp, convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.valid)

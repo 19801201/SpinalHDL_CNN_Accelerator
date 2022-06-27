@@ -38,6 +38,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
 
         val last = out Bool()
         val softReset = in Bool()
+        val amendReg = in Bits (32 bits)
     }
     noIoPrefix()
     ClockDomain(clock=this.clockDomain.clock,reset=this.clockDomain.reset,softReset = io.softReset){
@@ -245,6 +246,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         quan.io.zeroIn <> io.quanZeroData
         //    quan.io.dataOut <> io.mFeatureData.payload
         quan.io.activationEn <> io.enActivation
+        quan.io.amendReg <> io.amendReg
 
         val stride = new Stride(convConfig)
         stride.io.enStride <> io.enStride

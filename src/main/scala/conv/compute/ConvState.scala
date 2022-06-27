@@ -42,6 +42,8 @@ object CONV_STATE extends Area {
     def WEIGHT_NUM = 111 downto 96
     def QUAN_NUM = 127 downto 112
 
+    def AMEND  = 159 downto 128
+
 }
 
 case class ConvStateFsm(control: Bits, complete: Bits) extends Area {

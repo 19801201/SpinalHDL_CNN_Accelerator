@@ -13,7 +13,7 @@ class Conv(convConfig: ConvConfig) extends Component {
         val sFeatureFirstLayerData = slave Stream UInt((if (imageType.dataType == imageType.rgb) 4 * convConfig.DATA_WIDTH else 1 * convConfig.DATA_WIDTH) bits)
         val mData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits)
         //        val start = in Bool()
-        val instruction = in Vec(Bits(32 bits), 4)
+        val instruction = in Vec(Bits(32 bits), 5)
         val control = in Bits (4 bits)
         val state = out Bits (4 bits)
 
@@ -71,6 +71,7 @@ class Conv(convConfig: ConvConfig) extends Component {
     convCompute.io.convType := computeInstructionReg(CONV_STATE.CONV_TYPE).resized
     convCompute.io.enStride := computeInstructionReg(CONV_STATE.EN_STRIDE)
     convCompute.io.firstLayer := computeInstructionReg(CONV_STATE.FIRST_LAYER)
+    convCompute.io.amendReg := computeInstructionReg(CONV_STATE.AMEND)
 
     convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
     //    convCompute.io.weightNum := computeInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized

@@ -15,6 +15,7 @@ class Quan(convConfig: ConvConfig) extends Component {
         val zeroIn = in UInt (8 bits)
         val activationEn = in Bool()
         val dataOut = out UInt (convConfig.COMPUTE_CHANNEL_OUT_NUM * 8 bits)
+        val amendReg = in Bits (32 bits)
     }
     noIoPrefix()
     val bias = new Bias(convConfig)
@@ -23,11 +24,11 @@ class Quan(convConfig: ConvConfig) extends Component {
 
     val scale = new Scale(convConfig)
     scale.port.dataIn <> bias.port.dataOut
-    scale.port.quan <> Delay(io.scaleIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 1)
+    scale.port.quan <> Delay(io.scaleIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 2)
 
     val shift = new Shift(convConfig)
     shift.port.dataIn <> scale.port.dataOut
-    shift.port.quan <> Delay(io.shiftIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 4)
+    shift.port.quan <> Delay(io.shiftIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 5)
 
     val zero = new Zero(convConfig)
     zero.io.dataIn <> shift.port.dataOut
@@ -36,6 +37,7 @@ class Quan(convConfig: ConvConfig) extends Component {
     val leakyRelu = new LeakyRelu(convConfig)
     leakyRelu.io.dataIn <> zero.io.dataOut
     leakyRelu.io.quanZero <> io.zeroIn
+    leakyRelu.io.amendReg <> io.amendReg
     when(io.activationEn) {
         io.dataOut.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices) <> leakyRelu.io.dataOut
     } otherwise {
@@ -57,12 +59,28 @@ case class QuanSubPort(convConfig: ConvConfig, inWidth: Int, quanWidth: Int, out
 class Bias(convConfig: ConvConfig) extends Component {
 
 
-    val port = QuanSubPort(convConfig, 32, 32, 32).setName("Bias")
+    val port = QuanSubPort(convConfig, 32, 32, 48).setName("Bias")
+    val dataInTemp = Vec(Reg(SInt(48 bits)), convConfig.COMPUTE_CHANNEL_OUT_NUM)
+    val biasInTemp = Vec(Reg(UInt(48 bits)), convConfig.COMPUTE_CHANNEL_OUT_NUM)
+    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
+        dataInTemp(i) := port.dataIn(i) @@ S"16'd0"
+        switch(port.quan(i)(30 downto 24)) {
+            for (j <- 0 until 17) {
+                is(j) {
+                    biasInTemp(i) := S(port.quan(i)(31)).resize(8+j bits).asUInt @@ port.quan(i)(23 downto 0) @@ U(16 - j bits, default -> false)
+                }
+            }
+            default{
+                //算法控制，实际这个default是不会出现的
+                biasInTemp(i) := 0
+            }
+        }
+    })
     val biasAdd = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM)(i => {
         def gen = {
-            val add = AddSub(32, 32, 32, AddSubConfig.signed, AddSubConfig.unsigned, 1, AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "biasAdd", i == 0)
-            add.io.A <> port.dataIn(i)
-            add.io.B <> port.quan(i)
+            val add = AddSub(48, 48, 48, AddSubConfig.signed, AddSubConfig.unsigned, 1, AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "biasAdd", i == 0)
+            add.io.A <> dataInTemp(i)
+            add.io.B <> biasInTemp(i)
             add.io.S <> port.dataOut(i)
         }
 
@@ -74,11 +92,11 @@ class Bias(convConfig: ConvConfig) extends Component {
 //}
 
 class Scale(convConfig: ConvConfig) extends Component {
-    val port = QuanSubPort(convConfig, 32, 32, 32).setName("Scale")
+    val port = QuanSubPort(convConfig, 48, 32, 32).setName("Scale")
     val scaleMulOut = Vec(SInt(32 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
     val scaleMul = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM)(i => {
         def gen = {
-            val mul = Mul(32, 32, 32, MulConfig.signed, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "scaleMul", 63, 32, i == 0)
+            val mul = Mul(48, 32, 32, MulConfig.signed, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "scaleMul", 79, 48, i == 0)
             mul.io.A <> port.dataIn(i)
             mul.io.B <> port.quan(i)
             mul.io.P <> scaleMulOut(i)

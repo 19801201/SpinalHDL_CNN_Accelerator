@@ -9,6 +9,7 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
     val io = new Bundle {
         val dataIn = in Vec(UInt(8 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
         val quanZero = in UInt (8 bits)
+        val amendReg = in Bits (32 bits)
         val dataOut = out Vec(UInt(8 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
     }
     noIoPrefix()
@@ -29,7 +30,7 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
         subZ3.io.S <> subOut
 
         val mulTemp = SInt(32 bits)
-        val mantissa = mulTemp(16 downto 0)
+        val mantissa = mulTemp(16 downto 13)
         val odd = (mulTemp >> 17) + 1
         val even = mulTemp >> 17
         val mul = Mul(16, 16, 32, MulConfig.signed, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "leakyReluMul", genTcl)
@@ -67,15 +68,15 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
         //            }
         //        }
         //3*3更优
-        when(!srcTemp.sign) {
-            mulOut := srcTemp
-        } otherwise {
-            when(mantissa.asUInt < midLow) {
-                mulOut := even.resized
-            } otherwise {
-                mulOut := odd.resized
-            }
-        }
+        //        when(!srcTemp.sign) {
+        //            mulOut := srcTemp
+        //        } otherwise {
+        //            when(mantissa.asUInt < midLow) {
+        //                mulOut := even.resized
+        //            } otherwise {
+        //                mulOut := odd.resized
+        //            }
+        //        }
 
 
         //1*1更优
@@ -96,9 +97,58 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
         //            }
         //        }
 
+        when(srcTemp.sign) {
+            when(mantissa === 0) {
+                mulOut := even.resized
+            } elsewhen (mulTemp(17)) {
+                when(mulTemp(16)) {
+                    mulOut := odd.resized
+                } otherwise {
+                    mulOut := even.resized
+                }
+            } otherwise {
+                when(mantissa.asUInt > U"4'b1000") {
+                    mulOut := odd.resized
+                } otherwise {
+                    mulOut := even.resized
+                }
+            }
+        } otherwise {
+            mulOut := srcTemp
+        }
+
+        val amendOut = Reg(SInt(16 bits))
+
+        val list = List(S"16'b1111_1111_1111_1011", S"16'b1111_1111_1111_0001", S"16'b1111_1111_1110_0111", S"16'b1111_1111_1101_1101",
+            S"16'b1111_1111_1101_0011", S"16'b1111_1111_1100_1001", S"16'b1111_1111_1011_1111", S"16'b1111_1111_1011_0101",
+            S"16'b1111_1111_1010_1011", S"16'b1111_1111_1010_0001", S"16'b1111_1111_1001_0111", S"16'b1111_1111_1000_1101",
+            S"16'b1111_1111_1000_0011", S"16'b1111_1111_0111_1001", S"16'b1111_1111_0110_1111", S"16'b1111_1111_0110_0101")
+        val srcTempDelay = RegNext(srcTemp)
+        when(srcTempDelay.sign){
+            switch(srcTempDelay) {
+                for (i <- 0 until 16) {
+                    is(list(i)){
+                        when(io.amendReg((31-i*2) downto (30-i*2))===B"2'b01"){
+                            amendOut := mulOut + 1
+                        } elsewhen(io.amendReg((31-i*2) downto (30-i*2))===B"2'b10"){
+                            amendOut := mulOut - 1
+                        } otherwise{
+                            amendOut := mulOut
+                        }
+                    }
+                }
+                default{
+                    amendOut := mulOut
+                }
+            }
+        } otherwise{
+            amendOut := mulOut
+        }
+
+
         val addZ3Out = SInt(16 bits)
         val addZ3 = AddSub(16, 8, 16, AddSubConfig.signed, AddSubConfig.unsigned, 1, AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "leakyAddZ3", genTcl)
-        addZ3.io.A <> mulOut
+        addZ3.io.A <> amendOut
         addZ3.io.B <> io.quanZero
         addZ3.io.S <> addZ3Out
 

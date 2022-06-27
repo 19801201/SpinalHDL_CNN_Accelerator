@@ -145,7 +145,7 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
 
 
     register.io.regSData <> regSData
-    (0 until 4).foreach(i => {
+    (0 until 5).foreach(i => {
         register.ins(i) <> conv.io.instruction(i)
     })
     (0 until 6).foreach(i => {
