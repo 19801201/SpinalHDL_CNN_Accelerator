@@ -36,20 +36,20 @@ class Conv(convConfig: ConvConfig) extends Component {
     val paraInstruction = io.instruction.reverse.reduceRight(_ ## _)
     val computeInstruction = io.instruction.reverse.reduceRight(_ ## _)
 
-    val paraInstructionReg = Reg(Bits(paraInstruction.getWidth bits)) init 0
-    val computeInstructionReg = Reg(Bits(computeInstruction.getWidth bits)) init 0
-    //    val computeInstructionReg = RegNext(computeInstruction) init 0
+    //    val paraInstructionReg = Reg(Bits(paraInstruction.getWidth bits)) init 0
+//    val computeInstructionReg = Reg(Bits(computeInstruction.getWidth bits)) init 0
+    val computeInstructionReg = RegNext(computeInstruction) init 0
 
-    when(convState.io.sign === CONV_STATE.PARA_SIGN) {
-        paraInstructionReg := paraInstruction
-        computeInstructionReg := computeInstructionReg
-    } elsewhen (convState.io.sign === CONV_STATE.COMPUTE_SIGN) {
-        paraInstructionReg := paraInstructionReg
-        computeInstructionReg := computeInstruction
-    } otherwise {
-        paraInstructionReg := paraInstructionReg
-        computeInstructionReg := computeInstructionReg
-    }
+    //    when(convState.io.sign === CONV_STATE.PARA_SIGN) {
+    //        paraInstructionReg := paraInstruction
+    //        computeInstructionReg := computeInstructionReg
+    //    } elsewhen (convState.io.sign === CONV_STATE.COMPUTE_SIGN) {
+    //        paraInstructionReg := paraInstructionReg
+    //        computeInstructionReg := computeInstruction
+    //    } otherwise {
+    //        paraInstructionReg := paraInstructionReg
+    //        computeInstructionReg := computeInstructionReg
+    //    }
 
     val convCompute = new ConvCompute(convConfig)
     convCompute.io.softReset := Delay(convState.io.softReset, 2)
@@ -73,10 +73,10 @@ class Conv(convConfig: ConvConfig) extends Component {
     convCompute.io.firstLayer := computeInstructionReg(CONV_STATE.FIRST_LAYER)
     convCompute.io.amendReg := computeInstructionReg(CONV_STATE.AMEND)
 
-    convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
-    //    convCompute.io.weightNum := computeInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
-    convCompute.io.quanNum := paraInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
-    //    convCompute.io.quanNum := computeInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
+//    convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
+        convCompute.io.weightNum := computeInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
+//    convCompute.io.quanNum := paraInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
+        convCompute.io.quanNum := computeInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
 
 
     (convState.io.dmaReadValid & (!computeInstructionReg(CONV_STATE.FIRST_LAYER))) <> io.dmaReadValid
