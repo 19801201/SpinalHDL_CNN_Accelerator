@@ -106,11 +106,13 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
             val shapeSData1Cmd = Cmd() setName("shapeSData1Cmd")
             val shapeMDataCmd = Cmd() setName("shapeMDataCmd")
             val convMLast = out Bool() setName("convMLast")
+            val shapeMLast = out Bool() setName("shapeMLast")
 
         }
         noIoPrefix()
 
         conv.io.last <> io.convMLast
+        shape.io.last <> io.shapeMLast
 
         io.convMDataCmd.cmd := register.dma(0)(0)(0) ## register.dma(0)(1)(0)
         io.convMDataCmd.valid := conv.io.dmaWriteValid
@@ -163,6 +165,6 @@ object Npu extends App {
     //    SpinalVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 416, 10, 1024)))
     //    TotalTcl(Config.filePath + File.separator + "tcl", Config.filePath).genTotalTcl
     val clockCfg = ClockDomainConfig(resetKind = SYNC,resetActiveLevel = HIGH)
-    SpinalConfig(defaultConfigForClockDomains = clockCfg,targetDirectory = Config.filePath + File.separator + "rtl").generateVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 416, 10, 1024)))
+    SpinalConfig(defaultConfigForClockDomains = clockCfg,targetDirectory = Config.filePath + File.separator + "rtl").generateVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 416, 12, 2048)))
     TotalTcl(Config.filePath + File.separator + "tcl", Config.filePath).genTotalTcl
 }

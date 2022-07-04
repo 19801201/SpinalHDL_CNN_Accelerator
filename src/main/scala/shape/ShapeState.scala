@@ -39,22 +39,33 @@ case class ShapeStateFsm(control: Bits, complete: Bool) extends Area {
     currentState := nextState
     switch(currentState) {
         is(ShapeStateEnum.IDLE) {
-            switch(control) {
-                is(Control.MAX_POOLING) {
-                    nextState := ShapeStateEnum.MAX_POOLING
-                }
-                is(Control.SPLIT) {
-                    nextState := ShapeStateEnum.SPLIT
-                }
-                is(Control.UP_SAMPLING) {
-                    nextState := ShapeStateEnum.UP_SAMPLING
-                }
-                is(Control.CONCAT) {
-                    nextState := ShapeStateEnum.CONCAT
-                }
-                default {
-                    nextState := ShapeStateEnum.IDLE
-                }
+            //            switch(control) {
+            //                is(Control.MAX_POOLING) {
+            //                    nextState := ShapeStateEnum.MAX_POOLING
+            //                }
+            //                is(Control.SPLIT) {
+            //                    nextState := ShapeStateEnum.SPLIT
+            //                }
+            //                is(Control.UP_SAMPLING) {
+            //                    nextState := ShapeStateEnum.UP_SAMPLING
+            //                }
+            //                is(Control.CONCAT) {
+            //                    nextState := ShapeStateEnum.CONCAT
+            //                }
+            //                default {
+            //                    nextState := ShapeStateEnum.IDLE
+            //                }
+            //            }
+            when(control === Control.MAX_POOLING) {
+                nextState := ShapeStateEnum.MAX_POOLING
+            } elsewhen (control === Control.SPLIT) {
+                nextState := ShapeStateEnum.SPLIT
+            } elsewhen (control === Control.UP_SAMPLING) {
+                nextState := ShapeStateEnum.UP_SAMPLING
+            } elsewhen (control === Control.CONCAT) {
+                nextState := ShapeStateEnum.CONCAT
+            } otherwise {
+                nextState := ShapeStateEnum.IDLE
             }
         }
         is(ShapeStateEnum.MAX_POOLING) {
@@ -125,28 +136,37 @@ class ShapeState extends Component {
         val control = in Bits (4 bits)
         val complete = in Bool()
         val state = out(Reg(Bits(4 bits)))
-        val start = out(Vec(Reg(Bool()) init False, 4))
-        val dmaReadValid = out Vec(Bool(), 2)
-        val dmaWriteValid = out Bool()
+        val start = out(Vec(Reg(Bool()), 4))
+        val dmaReadValid = out(Vec(Bool(), 2))
+        val dmaWriteValid = out(Bool())
     }
     noIoPrefix()
 
     val fsm = ShapeStateFsm(io.control, io.complete)
 
+    val dmaReadValid = Vec(Vec(Reg(Bool()) init False, 2), 4)
+    val dmaWriteValid = Vec(Reg(Bool()) init False, 4)
+
+//    io.dmaReadValid := Vec(dmaReadValid.foreach(i=>i(0)))
+    io.dmaReadValid(0) := dmaReadValid(0)(0)^dmaReadValid(1)(0)^dmaReadValid(2)(0)^dmaReadValid(3)(0)
+    io.dmaReadValid(1) := dmaReadValid(0)(1)^dmaReadValid(1)(1)^dmaReadValid(2)(1)^dmaReadValid(3)(1)
+//    io.dmaReadValid(1) := dmaReadValid(1).reduce(_ ^ _)
+    io.dmaWriteValid := dmaWriteValid.reduce(_ ^ _)
+
     def setStart(en: Bool, index: Int, isConcat: Boolean = false): Unit = {
         when(en) {
             io.start(index) := True
             if (isConcat) {
-                io.dmaReadValid := Vec(True, True)
+                dmaReadValid(index) := Vec(True, True)
             } else {
-                io.dmaReadValid := Vec(True, False)
+                dmaReadValid(index) := Vec(True, False)
             }
-            io.dmaWriteValid := True
+            dmaWriteValid(index) := True
 
         } otherwise {
             io.start(index) := False
-            io.dmaReadValid.foreach(_ := False)
-            io.dmaWriteValid := False
+            dmaReadValid(index).map(_ := False)
+            dmaWriteValid(index):= False
         }
     }
 

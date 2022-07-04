@@ -154,13 +154,14 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
         } otherwise {
             data := 0
         }
-        Delay(data, delay)
+        val a = Delay(data, delay).addAttribute("max_fanout = \"50\"")
+        a
     }
 
-    val featureMemReadAddrTemp = Reg(UInt(log2Up(convConfig.FEATURE_MEM_DEPTH) bits)) init 0
+    val featureMemReadAddrTemp = Reg(UInt(log2Up(convConfig.FEATURE_MEM_DEPTH) bits)) init 0 addAttribute ("max_fanout = \"50\"")
     io.featureMemReadAddr := increase(featureMemReadAddrTemp, channelInCnt.valid, 2)
 
-    val weightReadAddr = Reg(UInt(log2Up(convConfig.WEIGHT_M_DATA_DEPTH) bits))
+    val weightReadAddr = Reg(UInt(log2Up(convConfig.WEIGHT_M_DATA_DEPTH) bits)) addAttribute ("max_fanout = \"50\"")
     val weightReadAddrTemp = increase(weightReadAddr, channelInCnt.valid && channelOutCnt.valid, 1)
     io.weightReadAddr.map(_ := weightReadAddrTemp)
 

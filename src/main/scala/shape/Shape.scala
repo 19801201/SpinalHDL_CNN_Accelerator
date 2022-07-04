@@ -2,6 +2,7 @@ package shape
 
 import spinal.core._
 import spinal.lib._
+import wa.WaCounter
 
 case class ShapeConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: Int, CHANNEL_WIDTH: Int, ROW_MEM_DEPTH: Int) {
     val STREAM_DATA_WIDTH = DATA_WIDTH * COMPUTE_CHANNEL_NUM
@@ -24,6 +25,7 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
         val state = out Bits (4 bits)
         val introut = in Bool()
         val instruction = in Vec(Bits(32 bits), 6)
+        val last = out Bool()
     }
     noIoPrefix()
 
@@ -46,7 +48,7 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     val fifoReady = Bool()
 
     val concat = new Concat(shapeConfig.concatConfig)
-    concat.dataPort.start <> shapeState.io.start(Start.CONCAT)
+    concat.dataPort.start <> Delay(shapeState.io.start(Start.CONCAT), 5)
     concat.dataPort.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
     concat.dataPort.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
     concat.dataPort.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
@@ -58,21 +60,21 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     concat.dataPort.fifoReady <> fifoReady
 
     val maxPooling = new MaxPooling(shapeConfig.maxPoolingConfig)
-    maxPooling.io.start <> shapeState.io.start(Start.MAX_POOLING)
+    maxPooling.io.start <> Delay(shapeState.io.start(Start.MAX_POOLING), 5)
     maxPooling.io.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
     maxPooling.io.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
     maxPooling.io.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
     maxPooling.io.fifoReady <> fifoReady
 
     val split = new Split(shapeConfig.splitConfig)
-    split.io.start <> shapeState.io.start(Start.SPLIT)
+    split.io.start <> Delay(shapeState.io.start(Start.SPLIT), 5)
     split.io.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
     split.io.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
     split.io.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
     split.io.fifoReady <> fifoReady
 
     val upSampling = new UpSampling(shapeConfig.upSamplingConfig)
-    upSampling.io.start <> shapeState.io.start(Start.UP_SAMPLING)
+    upSampling.io.start <> Delay(shapeState.io.start(Start.UP_SAMPLING), 5)
     upSampling.io.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
     upSampling.io.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
     upSampling.io.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
@@ -85,6 +87,41 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
 
     val fifo = StreamFifo(UInt(shapeConfig.STREAM_DATA_WIDTH bits), shapeConfig.ROW_MEM_DEPTH << 1)
     fifo.io.pop <> io.mData
+
+    val channelOutTimes = Reg(UInt(instructionReg(Instruction.CHANNEL_IN).getWidth bits))
+    val colOutTimes = Reg(UInt(instructionReg(Instruction.COL_NUM_IN).getWidth bits))
+    val rowOutTimes = Reg(UInt(instructionReg(Instruction.ROW_NUM_IN).getWidth bits))
+    switch(shapeState.io.state) {
+        is(State.CONCAT) {
+            colOutTimes := instructionReg(Instruction.COL_NUM_IN).asUInt
+            rowOutTimes := instructionReg(Instruction.ROW_NUM_IN).asUInt
+            channelOutTimes := ((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt + (instructionReg(Instruction.CHANNEL_IN1) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt).resized
+        }
+        is(State.MAX_POOLING) {
+            colOutTimes := (instructionReg(Instruction.COL_NUM_IN) >> 1).asUInt.resized
+            rowOutTimes := (instructionReg(Instruction.ROW_NUM_IN) >> 1).asUInt.resized
+            channelOutTimes := (instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt.resized
+        }
+        is(State.UP_SAMPLING) {
+            colOutTimes := (instructionReg(Instruction.COL_NUM_IN) << 1).asUInt.resized
+            rowOutTimes := (instructionReg(Instruction.ROW_NUM_IN) << 1).asUInt.resized
+            channelOutTimes := (instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt.resized
+        }
+        is(State.SPLIT) {
+            colOutTimes := instructionReg(Instruction.COL_NUM_IN).asUInt
+            rowOutTimes := instructionReg(Instruction.ROW_NUM_IN).asUInt
+            channelOutTimes := (instructionReg(Instruction.CHANNEL_IN) >> (1 + log2Up(shapeConfig.COMPUTE_CHANNEL_NUM))).asUInt.resized
+        }
+        default {
+            colOutTimes := colOutTimes
+            rowOutTimes := rowOutTimes
+            channelOutTimes := channelOutTimes
+        }
+    }
+    val channelOutCnt = WaCounter(io.mData.fire, channelOutTimes.getWidth, channelOutTimes - 1)
+    val colOutCnt = WaCounter(channelOutCnt.valid && io.mData.fire, colOutTimes.getWidth, colOutTimes - 1)
+    val rowOutCnt = WaCounter(channelOutCnt.valid && colOutCnt.valid && io.mData.fire, rowOutTimes.getWidth, rowOutTimes - 1)
+    io.last := channelOutCnt.valid && colOutCnt.valid && rowOutCnt.valid
 
     when(fifo.io.availability > dataCount) {
         fifoReady := True
@@ -154,8 +191,8 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
             clearS(split.io.sData)
             clearS(upSampling.io.sData)
             clearS(fifo.io.push)
-//            fifo.io.push.valid := False
-//            fifo.io.push.payload := 0
+            //            fifo.io.push.valid := False
+            //            fifo.io.push.payload := 0
             clearM(concat.dataPort.mData)
             clearM(maxPooling.io.mData)
             clearM(upSampling.io.mData)
@@ -174,5 +211,5 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
 }
 
 object Shape extends App {
-    SpinalVerilog(new Shape(ShapeConfig(8, 8, 640, 10, 1024))).printPruned()
+    SpinalVerilog(new Shape(ShapeConfig(8, 8, 416, 10, 2048))).printPruned()
 }
