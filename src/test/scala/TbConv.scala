@@ -192,16 +192,16 @@ class TbConv(simConfig: ConvSimConfig, convConfig: ConvConfig) extends Component
 
     val conv = new Conv(convConfig)
     val weight = new Rom(convConfig.FEATURE_S_DATA_WIDTH, scala.math.pow(2, log2Up(simConfig.weightMemDepth)).toInt, simConfig.weightMemFileName)
-    val feature = new Rom(convConfig.FEATURE_S_DATA_WIDTH, scala.math.pow(2, log2Up(simConfig.featureMemDepth)).toInt, simConfig.featureMemFileName)
+    val feature = new Rom(8, scala.math.pow(2, log2Up(simConfig.featureMemDepth)).toInt, simConfig.featureMemFileName)
 
     val paraData = Stream(UInt(convConfig.FEATURE_S_DATA_WIDTH bits))
-    val featureData = Stream(UInt(convConfig.FEATURE_S_DATA_WIDTH bits))
+    val featureData = Stream(UInt(8 bits))
     paraData.valid.setAsReg() init (False) assignFromBits (B"1'b1")
     featureData.valid.setAsReg() init (False) assignFromBits (B"1'b1")
     paraData.payload := weight.io.data
     featureData.payload := feature.io.data
-    val paraAddr = Counter(simConfig.weightMemDepth, inc = paraData.fire) init (0)
-    val featureAddr = Counter(simConfig.featureMemDepth, inc = featureData.fire) init (0)
+    val paraAddr = Counter(scala.math.pow(2, log2Up(simConfig.weightMemDepth)).toInt, inc = paraData.fire) init (0)
+    val featureAddr = Counter(scala.math.pow(2, log2Up(simConfig.featureMemDepth)).toInt, inc = featureData.fire) init (0)
     weight.io.addr <> paraAddr
     feature.io.addr <> featureAddr
 
@@ -246,7 +246,10 @@ class TbConv(simConfig: ConvSimConfig, convConfig: ConvConfig) extends Component
         }
         WEIGHT.onEntry(conv.io.control := B"4'b0001")
             .whenIsActive {
-                instruction := (CONV_STATE.WEIGHT_NUM -> B(weightNum), CONV_STATE.QUAN_NUM -> B(quanNum), default -> false)
+                instruction := (CONV_STATE.ROW_NUM_IN -> B(simConfig.rowNumIn), CONV_STATE.COL_NUM_IN -> B(simConfig.colNumIn), CONV_STATE.CHANNEL_IN -> B(simConfig.channelIn),
+                    CONV_STATE.CHANNEL_OUT -> B(simConfig.channelOut), CONV_STATE.EN_PADDING -> simConfig.enPadding, CONV_STATE.EN_ACTIVATION -> simConfig.enActivation,
+                    CONV_STATE.Z1 -> B(simConfig.zeroDara), CONV_STATE.Z1_NUM -> B(simConfig.zeroNum), CONV_STATE.Z3 -> B(simConfig.quanZeroData), CONV_STATE.CONV_TYPE -> B(simConfig.convType),
+                    CONV_STATE.EN_STRIDE -> simConfig.enStride,CONV_STATE.FIRST_LAYER->false,CONV_STATE.AMEND->B(simConfig.amend),CONV_STATE.WEIGHT_NUM->B(weightNum),CONV_STATE.QUAN_NUM->B(quanNum), default -> false)
                 conv.io.sData <> paraData
                 featureData.ready := False
                 when(conv.io.state === B"4'b1111") {
@@ -275,7 +278,7 @@ class TbConv(simConfig: ConvSimConfig, convConfig: ConvConfig) extends Component
                     CONV_STATE.CHANNEL_OUT -> B(simConfig.channelOut), CONV_STATE.EN_PADDING -> simConfig.enPadding, CONV_STATE.EN_ACTIVATION -> simConfig.enActivation,
                     CONV_STATE.Z1 -> B(simConfig.zeroDara), CONV_STATE.Z1_NUM -> B(simConfig.zeroNum), CONV_STATE.Z3 -> B(simConfig.quanZeroData), CONV_STATE.CONV_TYPE -> B(simConfig.convType),
                     CONV_STATE.EN_STRIDE -> simConfig.enStride,CONV_STATE.FIRST_LAYER->simConfig.firstLayer,CONV_STATE.AMEND->B(simConfig.amend), default -> false)
-                conv.io.sData <> featureData
+                conv.io.sFeatureFirstLayerData <> featureData
                 paraData.ready := False
                 when(conv.io.state === B"4'b1111") {
                     goto(FEATURE_IRQ)
@@ -306,8 +309,8 @@ class TbConv(simConfig: ConvSimConfig, convConfig: ConvConfig) extends Component
 object TbConv extends App {
 //    val simConfig = ConvSimConfig(416, 416, 32, 64, true, true, 68, 1, 68, CONV_STATE.CONV33, 2400, 692224, false, "simData/all_weight_new.mem", "simData/test_416.mem")
 //    val simConfig = ConvSimConfig(160, 160, 64, 64, true, true, 68, 1, 70, CONV_STATE.CONV33, 4704, 204800, false, false,"simData/conv3/conv3_weight.coe", "simData/conv3/out_api_conv2_leak_stride2.coe")
-    val simConfig = ConvSimConfig(160, 160, 64, 64, true, true, 68, 1, 70, CONV_STATE.CONV33, 4704, 204800, false, false,1114133,"simData/conv3/xiuzheng/weight_6_25.coe", "simData/conv3/xiuzheng/feature_conv3.coe")
-    val convConfig = ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1)
+    val simConfig = ConvSimConfig(640, 640, 8, 32, true, true, 0, 1, 68, CONV_STATE.CONV33, 336, 409600, true, true,8390805,"simData/first/weight_3_8(12).coe", "simData/first/feature_real825_640_conv1_leak(1).coe")
+    val convConfig = ConvConfig(8, 8, 8, 12, 8192, 512, 640, 2048, 1)
     SpinalConfig(defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH)).generateVerilog(new TbConv(simConfig, convConfig))
     //    SpinalVerilog(new TbConv)
 }

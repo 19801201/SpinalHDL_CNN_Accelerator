@@ -30,7 +30,10 @@ class ChannelIncr(convConfig: ConvConfig) extends Component {
         val mData = master Stream (UInt(convConfig.FEATURE_S_DATA_WIDTH bits))
     }
     noIoPrefix()
-    StreamWidthAdapter(io.sData,io.mData,padding=true)
+//    StreamWidthAdapter(io.sData,io.mData,padding=true)
+    io.mData.ready <> io.sData.ready
+    io.mData.valid <> io.sData.valid
+    io.mData.payload := io.sData.payload.resized
 }
 
 object ChannelIncr extends App {

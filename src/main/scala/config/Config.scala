@@ -13,7 +13,7 @@ object Config {
     case class ImageType() {
         val rgb = "RGB"
         val gray = "GRAY"
-        val dataType = rgb
+        val dataType = gray
     }
 
     val imageType = ImageType()

@@ -118,8 +118,8 @@ class Add(addConfig: AddConfig) extends Component {
         mem2.io.pop.ready := False
     }
 
-    val add1 = AddZero(addConfig)
-    val add2 = AddZero(addConfig)
+    val add1 = AddAdd(addConfig)
+    val add2 = AddAdd(addConfig)
     add1.io.dataIn <> mem1.io.pop.payload.asSInt
     add2.io.dataIn <> mem2.io.pop.payload.asSInt
     add1.io.zero <> zero
@@ -136,7 +136,7 @@ class Add(addConfig: AddConfig) extends Component {
     val dataTemp = Vec(SInt(64 bits), addConfig.COMPUTE_CHANNEL_NUM)
     val add = Array.tabulate(addConfig.COMPUTE_CHANNEL_NUM)(i => {
         def gen = {
-            val addZero = AddSub(64, 64, 64, AddSubConfig.signed, AddSubConfig.signed, 2, AddSubConfig.dsp, this.clockDomain, AddSubConfig.add, "addAdd64_64", i == 0)
+            val addZero = AddSub(64, 64, 64, AddSubConfig.signed, AddSubConfig.signed, 2, AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "addAdd64_64", i == 0)
             addZero.io.A <> addScale1.io.dataOut(i)
             addZero.io.B <> addScale2.io.dataOut(i)
             addZero.io.S <> dataTemp(i)
@@ -168,7 +168,7 @@ class Add(addConfig: AddConfig) extends Component {
     dataPort.mData.valid := Delay(mem1.io.pop.fire, 9)
 }
 
-case class AddZero(addConfig: AddConfig) extends Component {
+case class AddAdd(addConfig: AddConfig) extends Component {
 
     val io = new Bundle {
         val dataIn = in SInt (addConfig.STREAM_DATA_WIDTH bits)
@@ -214,6 +214,6 @@ case class AddScale(addConfig: AddConfig) extends Component {
 }
 
 object Add extends App {
-    SpinalVerilog(new Add(AddConfig(8, 8, 640, 10, 4096)))
+    SpinalVerilog(new Add(AddConfig(8, 8, 416, 10, 2048)))
 }
 

@@ -1,6 +1,7 @@
 package conv.compute
 
 import spinal.core._
+import spinal.lib.Delay
 
 object ConvStateEnum extends SpinalEnum(defaultEncoding = binaryOneHot) {
     val IDLE, PARA, PARA_IRQ, COMPUTE, COMPUTE_IRQ = newElement
@@ -27,22 +28,34 @@ object CONV_STATE extends Area {
     val CONV11 = 1
 
     def ROW_NUM_IN = 10 downto 0
+
     def COL_NUM_IN = 21 downto 11
+
     def CHANNEL_IN = 31 downto 22
+
     def CHANNEL_OUT = 41 downto 32
+
     def EN_PADDING = 42 downto 42
+
     def EN_ACTIVATION = 43 downto 43
+
     def Z1 = 51 downto 44
+
     def Z1_NUM = 54 downto 52
+
     def Z3 = 62 downto 55
+
     def EN_STRIDE = 63
+
     def CONV_TYPE = 65 downto 64
+
     def FIRST_LAYER = 66
 
     def WEIGHT_NUM = 111 downto 96
+
     def QUAN_NUM = 127 downto 112
 
-    def AMEND  = 159 downto 128
+    def AMEND = 159 downto 128
 
 }
 
@@ -102,8 +115,8 @@ case class ConvState(convConfig: ConvConfig) extends Component {
         val complete = in Bits (4 bits)
         val state = out(Reg(Bits(4 bits)))
         val sign = out(Reg(Bits(4 bits)))
-        val dmaReadValid = out Bool()
-        val dmaWriteValid = out Bool()
+        val dmaReadValid = out(Reg(Bool()) init False)
+        val dmaWriteValid = out(Reg(Bool()) init False)
         val softReset = out Bool()
     }
     noIoPrefix()
@@ -129,23 +142,27 @@ case class ConvState(convConfig: ConvConfig) extends Component {
         //        }
     }
 
+    val dmaReadValid = Reg(Bool()) init False
+    val dmaWriteValid = Reg(Bool()) init False
+    io.dmaWriteValid := Delay(dmaWriteValid,4)
+    io.dmaReadValid := Delay(dmaReadValid,4)
     when(fsm.currentState === ConvStateEnum.IDLE && fsm.nextState === ConvStateEnum.PARA) {
         io.sign := CONV_STATE.PARA_SIGN
-        io.dmaReadValid.set()
-        io.dmaWriteValid.clear()
+        dmaReadValid.set()
+        dmaWriteValid.clear()
     } elsewhen (fsm.currentState === ConvStateEnum.IDLE && fsm.nextState === ConvStateEnum.COMPUTE) {
         io.sign := CONV_STATE.COMPUTE_SIGN
-        io.dmaWriteValid.set()
-        io.dmaReadValid.set()
+        dmaWriteValid.set()
+        dmaReadValid.set()
     } otherwise {
         io.sign := CONV_STATE.IDLE_SIGN
-        io.dmaReadValid.clear()
-        io.dmaWriteValid.clear()
+        dmaReadValid.clear()
+        dmaWriteValid.clear()
     }
 
-    when(fsm.currentState === ConvStateEnum.COMPUTE_IRQ && fsm.nextState === ConvStateEnum.IDLE){
+    when(fsm.currentState === ConvStateEnum.COMPUTE_IRQ && fsm.nextState === ConvStateEnum.IDLE) {
         io.softReset := True
-    } otherwise{
+    } otherwise {
         io.softReset := False
     }
 

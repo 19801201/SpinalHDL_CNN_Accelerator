@@ -77,7 +77,7 @@ case class FeatureGenerateFsm(start: Bool) extends Area {
 
 }
 
-case class GenerateMatrixPort(dataWidth:Int,kernelNum:Int) extends Bundle {
+case class GenerateMatrixPort(dataWidth: Int, kernelNum: Int) extends Bundle {
     val mData = Vec(master Flow UInt(dataWidth bits), kernelNum)
     val ready = in Bool()
 }
@@ -85,7 +85,7 @@ case class GenerateMatrixPort(dataWidth:Int,kernelNum:Int) extends Bundle {
 class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Component {
     val io = new Bundle {
         val sData = slave Stream UInt(featureGenerateConfig.STREAM_DATA_WIDTH bits)
-        val mData = GenerateMatrixPort(featureGenerateConfig.STREAM_DATA_WIDTH,featureGenerateConfig.KERNEL_NUM)
+        val mData = GenerateMatrixPort(featureGenerateConfig.STREAM_DATA_WIDTH, featureGenerateConfig.KERNEL_NUM)
         val rowNumIn = in UInt (featureGenerateConfig.FEATURE_WIDTH bits)
         val colNumIn = in UInt (featureGenerateConfig.FEATURE_WIDTH bits)
         val start = in Bool()
@@ -126,7 +126,7 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     val initCount = WaCounter(fsm.currentState === FeatureGenerateEnum.INIT, 3, 5)
     fsm.initEnd := initCount.valid
     val channelCnt = WaCounter(io.sData.fire, featureGenerateConfig.CHANNEL_WIDTH, channelTimes - 1)
-    val columnCnt = WaCounter(channelCnt.valid, featureGenerateConfig.FEATURE_WIDTH, io.colNumIn - 1)
+    val columnCnt = WaCounter(channelCnt.valid && io.sData.fire, featureGenerateConfig.FEATURE_WIDTH, io.colNumIn - 1)
     val rowCnt = WaCounter(fsm.currentState === FeatureGenerateEnum.END, featureGenerateConfig.FEATURE_WIDTH, io.rowNumIn - 1)
 
     fsm.waitEnd := channelCnt.valid && columnCnt.valid
@@ -142,17 +142,17 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     //    (0 until featureGenerateConfig.KERNEL_NUM).foreach(i => {
     //        io.mData.mData(i).valid := Delay(valid(i) && fsm.currentState === FeatureGenerateEnum.WR, 2)
     //    })
-    io.mData.mData(0).valid := Delay(valid(0) , 3)
-    io.mData.mData(3).valid := Delay(valid(3) , 3)
-    io.mData.mData(6).valid := Delay(valid(6) , 3)
-    io.mData.mData(1).valid := Delay(valid(1) , 2)
-    io.mData.mData(4).valid := Delay(valid(4) , 2)
-    io.mData.mData(7).valid := Delay(valid(7) , 2)
-    io.mData.mData(2).valid := Delay(valid(2) , 1)
-    io.mData.mData(5).valid := Delay(valid(5) , 1)
-    io.mData.mData(8).valid := Delay(valid(8) , 1)
-    when(fsm.currentState === FeatureGenerateEnum.WR){
-        when( columnCnt.count < io.colNumIn - 2) {
+    io.mData.mData(0).valid := Delay(valid(0), 3)
+    io.mData.mData(3).valid := Delay(valid(3), 3)
+    io.mData.mData(6).valid := Delay(valid(6), 3)
+    io.mData.mData(1).valid := Delay(valid(1), 2)
+    io.mData.mData(4).valid := Delay(valid(4), 2)
+    io.mData.mData(7).valid := Delay(valid(7), 2)
+    io.mData.mData(2).valid := Delay(valid(2), 1)
+    io.mData.mData(5).valid := Delay(valid(5), 1)
+    io.mData.mData(8).valid := Delay(valid(8), 1)
+    when(fsm.currentState === FeatureGenerateEnum.WR) {
+        when(columnCnt.count < io.colNumIn - 2) {
             valid(0) := True
             valid(3) := True
             valid(6) := True
@@ -179,8 +179,8 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
             valid(5) := False
             valid(8) := False
         }
-    } otherwise{
-        valid.map(_:= False)
+    } otherwise {
+        valid.map(_ := False)
     }
 
     //    io.mData.mData(2).valid := Delay(io.sData.fire && fsm.currentState === FeatureGenerateEnum.WR, 3)

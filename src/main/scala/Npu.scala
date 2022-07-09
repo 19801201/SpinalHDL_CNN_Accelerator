@@ -13,7 +13,7 @@ import java.io.File
 
 
 class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
-    val firstLayerWidth = if (imageType.dataType == imageType.rgb) 4 * convConfig.DATA_WIDTH else 32
+    val firstLayerWidth = if (imageType.dataType == imageType.rgb) 4 * convConfig.DATA_WIDTH else 8
 
     val regSData = slave(AxiLite4(log2Up(registerAddrSize), 32))
     AxiLite4SpecRenamer(regSData)
@@ -165,6 +165,6 @@ object Npu extends App {
     //    SpinalVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 416, 10, 1024)))
     //    TotalTcl(Config.filePath + File.separator + "tcl", Config.filePath).genTotalTcl
     val clockCfg = ClockDomainConfig(resetKind = SYNC,resetActiveLevel = HIGH)
-    SpinalConfig(defaultConfigForClockDomains = clockCfg,targetDirectory = Config.filePath + File.separator + "rtl").generateVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 416, 12, 2048)))
+    SpinalConfig(defaultConfigForClockDomains = clockCfg,targetDirectory = Config.filePath + File.separator + "rtl").generateVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 640, 2048, 1), ShapeConfig(8, 8, 640, 12, 2048)))
     TotalTcl(Config.filePath + File.separator + "tcl", Config.filePath).genTotalTcl
 }

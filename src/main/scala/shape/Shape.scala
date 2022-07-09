@@ -11,7 +11,7 @@ case class ShapeConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: Int, 
     val splitConfig = SplitConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH)
     val upSamplingConfig = UpSamplingConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH, ROW_MEM_DEPTH)
     val maxPoolingConfig = MaxPoolingConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH, ROW_MEM_DEPTH)
-
+    val addConfig = AddConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH, ROW_MEM_DEPTH)
 }
 
 
@@ -59,6 +59,18 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     concat.scale1 <> instructionReg(Instruction.SCALE1).asUInt.resized
     concat.dataPort.fifoReady <> fifoReady
 
+    val add = new Add(shapeConfig.addConfig)
+    add.dataPort.start <> Delay(shapeState.io.start(Start.ADD), 5)
+    add.dataPort.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
+    add.dataPort.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
+    add.dataPort.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
+    add.channelIn1 <> instructionReg(Instruction.CHANNEL_IN1).asUInt.resized
+    add.zero <> instructionReg(Instruction.ZERO).asUInt.resized
+    add.scale <> instructionReg(Instruction.SCALE).asUInt.resized
+    add.zero1 <> instructionReg(Instruction.ZERO1).asUInt.resized
+    add.scale1 <> instructionReg(Instruction.SCALE1).asUInt.resized
+    add.dataPort.fifoReady <> fifoReady
+
     val maxPooling = new MaxPooling(shapeConfig.maxPoolingConfig)
     maxPooling.io.start <> Delay(shapeState.io.start(Start.MAX_POOLING), 5)
     maxPooling.io.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
@@ -96,6 +108,11 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
             colOutTimes := instructionReg(Instruction.COL_NUM_IN).asUInt
             rowOutTimes := instructionReg(Instruction.ROW_NUM_IN).asUInt
             channelOutTimes := ((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt + (instructionReg(Instruction.CHANNEL_IN1) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt).resized
+        }
+        is(State.ADD) {
+            colOutTimes := instructionReg(Instruction.COL_NUM_IN).asUInt
+            rowOutTimes := instructionReg(Instruction.ROW_NUM_IN).asUInt
+            channelOutTimes := (instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt.resized
         }
         is(State.MAX_POOLING) {
             colOutTimes := (instructionReg(Instruction.COL_NUM_IN) >> 1).asUInt.resized
@@ -141,6 +158,24 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
             clearM(maxPooling.io.mData)
             clearM(upSampling.io.mData)
             clearM(split.io.mData)
+            clearS(add.sData1)
+            clearS(add.dataPort.sData)
+            clearM(add.dataPort.mData)
+        }
+        is(State.ADD) {
+            io.sData(0) <> add.dataPort.sData
+            io.sData(1) <> add.sData1
+            fifo.io.push <> add.dataPort.mData
+            dataCount := dataCount2
+            clearS(concat.sData1)
+            clearS(concat.dataPort.sData)
+            clearS(maxPooling.io.sData)
+            clearS(split.io.sData)
+            clearS(upSampling.io.sData)
+            clearM(concat.dataPort.mData)
+            clearM(maxPooling.io.mData)
+            clearM(upSampling.io.mData)
+            clearM(split.io.mData)
         }
         is(State.MAX_POOLING) {
             io.sData(0) <> maxPooling.io.sData
@@ -154,6 +189,9 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
             clearM(concat.dataPort.mData)
             clearM(upSampling.io.mData)
             clearM(split.io.mData)
+            clearS(add.sData1)
+            clearS(add.dataPort.sData)
+            clearM(add.dataPort.mData)
         }
         is(State.UP_SAMPLING) {
             io.sData(0) <> upSampling.io.sData
@@ -167,6 +205,9 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
             clearM(concat.dataPort.mData)
             clearM(maxPooling.io.mData)
             clearM(split.io.mData)
+            clearS(add.sData1)
+            clearS(add.dataPort.sData)
+            clearM(add.dataPort.mData)
         }
         is(State.SPLIT) {
             io.sData(0) <> split.io.sData
@@ -180,6 +221,9 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
             clearM(concat.dataPort.mData)
             clearM(maxPooling.io.mData)
             clearM(upSampling.io.mData)
+            clearS(add.sData1)
+            clearS(add.dataPort.sData)
+            clearM(add.dataPort.mData)
         }
         default {
             io.sData(0).ready := False
@@ -197,6 +241,9 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
             clearM(maxPooling.io.mData)
             clearM(upSampling.io.mData)
             clearM(split.io.mData)
+            clearS(add.sData1)
+            clearS(add.dataPort.sData)
+            clearM(add.dataPort.mData)
         }
     }
 

@@ -3,20 +3,20 @@ import spinal.core._
 import shape._
 import TbCfg.Rom
 class TbShape extends Component{
-    val addr1 = UInt(log2Up(204800) bits)
+    val addr1 = UInt(log2Up(102400) bits)
     val data1 = UInt(64 bits)
 
-    val addr2 = UInt(log2Up(204800) bits)
+    val addr2 = UInt(log2Up(102400) bits)
     val data2 = UInt(64 bits)
 
-    val rom1 = new Rom(64,204800,"simData/concat/input1.coe")
-    val rom2 = new Rom(64,204800,"simData/concat/input2.coe")
+    val rom1 = new Rom(64,102400,"simData/add/dark2_CSP_Conv1.coe")
+    val rom2 = new Rom(64,102400,"simData/add/dark2_CSP_m_Conv2.coe")
 
     rom1.io.addr := addr1
     rom1.io.data <> data1
 
     rom2.io.addr := addr2
-    rom2.io.data <> addr2
+    rom2.io.data <> data2
 }
 object TbShape extends App {
 //    SimConfig.withWave.compile(new Shape(ShapeConfig(8,8,416,10,1024))).doSim{
@@ -55,4 +55,5 @@ object TbShape extends App {
 //            dut.io.sData(0).valid #= false
 //            dut.clockDomain.waitSampling(10)
 //    }
+    SpinalVerilog(new TbShape)
 }

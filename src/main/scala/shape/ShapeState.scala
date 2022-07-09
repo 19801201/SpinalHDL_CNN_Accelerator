@@ -9,6 +9,7 @@ object State {
     val SPLIT = 2
     val UP_SAMPLING = 3
     val CONCAT = 4
+    val ADD = 5
     val IRQ = 15
 }
 
@@ -18,6 +19,7 @@ object Control {
     val SPLIT = 2
     val UP_SAMPLING = 3
     val CONCAT = 4
+    val ADD = 5
     val IRQ = 15
 }
 
@@ -30,7 +32,7 @@ object Control {
 //}
 
 object ShapeStateEnum extends SpinalEnum(defaultEncoding = binaryOneHot) {
-    val IDLE, MAX_POOLING, SPLIT, UP_SAMPLING, CONCAT, IRQ = newElement
+    val IDLE, MAX_POOLING, SPLIT, UP_SAMPLING, CONCAT, ADD, IRQ = newElement
 }
 
 case class ShapeStateFsm(control: Bits, complete: Bool) extends Area {
@@ -64,6 +66,8 @@ case class ShapeStateFsm(control: Bits, complete: Bool) extends Area {
                 nextState := ShapeStateEnum.UP_SAMPLING
             } elsewhen (control === Control.CONCAT) {
                 nextState := ShapeStateEnum.CONCAT
+            } elsewhen (control === Control.ADD) {
+                nextState := ShapeStateEnum.ADD
             } otherwise {
                 nextState := ShapeStateEnum.IDLE
             }
@@ -96,6 +100,13 @@ case class ShapeStateFsm(control: Bits, complete: Bool) extends Area {
                 nextState := ShapeStateEnum.CONCAT
             }
         }
+        is(ShapeStateEnum.ADD) {
+            when(complete) {
+                nextState := ShapeStateEnum.IRQ
+            } otherwise {
+                nextState := ShapeStateEnum.ADD
+            }
+        }
         is(ShapeStateEnum.IRQ) {
             when(control === Control.IRQ) {
                 nextState := ShapeStateEnum.IDLE
@@ -111,6 +122,7 @@ object Start {
     val SPLIT = 1
     val UP_SAMPLING = 2
     val CONCAT = 3
+    val ADD = 4
 }
 
 object Instruction {
@@ -136,7 +148,7 @@ class ShapeState extends Component {
         val control = in Bits (4 bits)
         val complete = in Bool()
         val state = out(Reg(Bits(4 bits)))
-        val start = out(Vec(Reg(Bool()), 4))
+        val start = out(Vec(Reg(Bool()), 5))
         val dmaReadValid = out(Vec(Bool(), 2))
         val dmaWriteValid = out(Bool())
     }
@@ -144,13 +156,13 @@ class ShapeState extends Component {
 
     val fsm = ShapeStateFsm(io.control, io.complete)
 
-    val dmaReadValid = Vec(Vec(Reg(Bool()) init False, 2), 4)
-    val dmaWriteValid = Vec(Reg(Bool()) init False, 4)
+    val dmaReadValid = Vec(Vec(Reg(Bool()) init False, 2), 5)
+    val dmaWriteValid = Vec(Reg(Bool()) init False, 5)
 
-//    io.dmaReadValid := Vec(dmaReadValid.foreach(i=>i(0)))
-    io.dmaReadValid(0) := dmaReadValid(0)(0)^dmaReadValid(1)(0)^dmaReadValid(2)(0)^dmaReadValid(3)(0)
-    io.dmaReadValid(1) := dmaReadValid(0)(1)^dmaReadValid(1)(1)^dmaReadValid(2)(1)^dmaReadValid(3)(1)
-//    io.dmaReadValid(1) := dmaReadValid(1).reduce(_ ^ _)
+    //    io.dmaReadValid := Vec(dmaReadValid.foreach(i=>i(0)))
+    io.dmaReadValid(0) := dmaReadValid(0)(0) ^ dmaReadValid(1)(0) ^ dmaReadValid(2)(0) ^ dmaReadValid(3)(0) ^ dmaReadValid(4)(0)
+    io.dmaReadValid(1) := dmaReadValid(0)(1) ^ dmaReadValid(1)(1) ^ dmaReadValid(2)(1) ^ dmaReadValid(3)(1) ^ dmaReadValid(4)(1)
+    //    io.dmaReadValid(1) := dmaReadValid(1).reduce(_ ^ _)
     io.dmaWriteValid := dmaWriteValid.reduce(_ ^ _)
 
     def setStart(en: Bool, index: Int, isConcat: Boolean = false): Unit = {
@@ -166,7 +178,7 @@ class ShapeState extends Component {
         } otherwise {
             io.start(index) := False
             dmaReadValid(index).map(_ := False)
-            dmaWriteValid(index):= False
+            dmaWriteValid(index) := False
         }
     }
 
@@ -174,7 +186,7 @@ class ShapeState extends Component {
     setStart(fsm.currentState === ShapeStateEnum.IDLE && fsm.nextState === ShapeStateEnum.UP_SAMPLING, Start.UP_SAMPLING)
     setStart(fsm.currentState === ShapeStateEnum.IDLE && fsm.nextState === ShapeStateEnum.SPLIT, Start.SPLIT)
     setStart(fsm.currentState === ShapeStateEnum.IDLE && fsm.nextState === ShapeStateEnum.CONCAT, Start.CONCAT, true)
-
+    setStart(fsm.currentState === ShapeStateEnum.IDLE && fsm.nextState === ShapeStateEnum.ADD, Start.ADD, true)
     switch(fsm.currentState) {
         is(ShapeStateEnum.CONCAT) {
             io.state := State.CONCAT
@@ -187,6 +199,9 @@ class ShapeState extends Component {
         }
         is(ShapeStateEnum.SPLIT) {
             io.state := State.SPLIT
+        }
+        is(ShapeStateEnum.ADD) {
+            io.state := State.ADD
         }
         is(ShapeStateEnum.IRQ) {
             io.state := State.IRQ
