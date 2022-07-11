@@ -25,7 +25,8 @@ object CONV_STATE extends Area {
     val IDLE_SIGN = 0
 
     val CONV33 = 0
-    val CONV11 = 1
+    val CONV11_8X = 1
+    val CONV11  = 2
 
     def ROW_NUM_IN = 10 downto 0
 

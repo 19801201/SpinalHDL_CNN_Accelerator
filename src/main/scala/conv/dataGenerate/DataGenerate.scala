@@ -37,28 +37,101 @@ class DataGenerate(dataGenerateConfig: DataGenerateConfig) extends Component {
     padding.io.zeroDara <> io.zeroDara
     val featureGenerate = new FeatureGenerate(dataGenerateConfig.featureGenerateConfig)
     val featureWidthConvert = new FeatureWidthConvert(dataGenerateConfig.featureGenerateConfig)
+    val featureConv11Convert = new FeatureConv11Convert(dataGenerateConfig.featureGenerateConfig)
 
     featureWidthConvert.io.channelIn <> io.channelIn
     featureWidthConvert.io.colNumIn <> io.colNumIn
     featureWidthConvert.io.rowNumIn <> io.rowNumIn
-    when(io.convType === CONV_STATE.CONV33) {
-        padding.io.sData <> io.sData
-        padding.io.start <> io.start
-        featureGenerate.io.mData <> io.mData
-        featureWidthConvert.io.sData.valid := False
-        featureWidthConvert.io.sData.payload := 0
-        featureWidthConvert.io.mData.ready := False
-        featureWidthConvert.io.start := False
 
-    } otherwise {
-        featureWidthConvert.io.sData <> io.sData
-        featureWidthConvert.io.mData <> io.mData
-        featureWidthConvert.io.start <> io.start
+    featureConv11Convert.io.channelIn <> io.channelIn
+    featureConv11Convert.io.colNumIn <> io.colNumIn
+    featureConv11Convert.io.rowNumIn <> io.rowNumIn
+    //    when(io.convType === CONV_STATE.CONV33) {
+    //        padding.io.sData <> io.sData
+    //        padding.io.start <> io.start
+    //        featureGenerate.io.mData <> io.mData
+    //        featureWidthConvert.io.sData.valid := False
+    //        featureWidthConvert.io.sData.payload := 0
+    //        featureWidthConvert.io.mData.ready := False
+    //        featureWidthConvert.io.start := False
+    //
+    //    } elsewhen (io.convType === CONV_STATE.CONV11_8X) {
+    //        featureWidthConvert.io.sData <> io.sData
+    //        featureWidthConvert.io.mData <> io.mData
+    //        featureWidthConvert.io.start <> io.start
+    //
+    //        featureGenerate.io.mData.ready := False
+    //        padding.io.start <> False
+    //        padding.io.sData.valid := False
+    //        padding.io.sData.payload := 0
+    //    } elsewhen (io.convType === CONV_STATE.CONV11) {
+    //
+    //    } otherwise {
+    //
+    //    }
 
-        featureGenerate.io.mData.ready := False
-        padding.io.start <> False
-        padding.io.sData.valid := False
-        padding.io.sData.payload := 0
+    switch(io.convType) {
+        is(CONV_STATE.CONV33) {
+            padding.io.sData <> io.sData
+            padding.io.start <> io.start
+            featureGenerate.io.mData <> io.mData
+            featureWidthConvert.io.sData.valid := False
+            featureWidthConvert.io.sData.payload := 0
+            featureWidthConvert.io.mData.ready := False
+            featureWidthConvert.io.start := False
+
+            featureConv11Convert.io.sData.valid := False
+            featureConv11Convert.io.sData.payload := 0
+            featureConv11Convert.io.mData.ready := False
+            featureConv11Convert.io.start := False
+        }
+        is(CONV_STATE.CONV11_8X) {
+            featureWidthConvert.io.sData <> io.sData
+            featureWidthConvert.io.mData <> io.mData
+            featureWidthConvert.io.start <> io.start
+
+            featureGenerate.io.mData.ready := False
+            padding.io.start <> False
+            padding.io.sData.valid := False
+            padding.io.sData.payload := 0
+
+            featureConv11Convert.io.sData.valid := False
+            featureConv11Convert.io.sData.payload := 0
+            featureConv11Convert.io.mData.ready := False
+            featureConv11Convert.io.start := False
+        }
+        is(CONV_STATE.CONV11) {
+
+            featureConv11Convert.io.sData <> io.sData
+            featureConv11Convert.io.mData <> io.mData
+            featureConv11Convert.io.start <> io.start
+
+            padding.io.start <> False
+            padding.io.sData.valid := False
+            padding.io.sData.payload := 0
+            featureGenerate.io.mData.ready := False
+
+            featureWidthConvert.io.sData.valid := False
+            featureWidthConvert.io.sData.payload := 0
+            featureWidthConvert.io.mData.ready := False
+            featureWidthConvert.io.start := False
+        }
+        default {
+            padding.io.start <> False
+            padding.io.sData.valid := False
+            padding.io.sData.payload := 0
+            featureGenerate.io.mData.ready := False
+
+            featureWidthConvert.io.sData.valid := False
+            featureWidthConvert.io.sData.payload := 0
+            featureWidthConvert.io.mData.ready := False
+            featureWidthConvert.io.start := False
+
+            featureConv11Convert.io.sData.valid := False
+            featureConv11Convert.io.sData.payload := 0
+            featureConv11Convert.io.mData.ready := False
+            featureConv11Convert.io.start := False
+        }
     }
 
     padding >> featureGenerate

@@ -125,8 +125,10 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
 
     when(io.convType === CONV_STATE.CONV33) {
         fsm.copyWeightEnd := copyWeightCnt.valid && copyWeightTimes.valid
-    } elsewhen (io.convType === CONV_STATE.CONV11) {
+    } elsewhen (io.convType === CONV_STATE.CONV11_8X) {
         fsm.copyWeightEnd := channelInCnt.valid && channelOutCnt.valid
+    } elsewhen (io.convType === CONV_STATE.CONV11) {
+        fsm.copyWeightEnd := copyWeightCnt.valid
     } otherwise {
         fsm.copyWeightEnd := False
     }
@@ -158,7 +160,7 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
                 }
 
             }
-        } elsewhen (io.convType === CONV_STATE.CONV11) {
+        } elsewhen (io.convType === CONV_STATE.CONV11_8X) {
             switch(times.count) {
                 (0 until 8).foreach(i => {
                     is(i) {
@@ -177,6 +179,11 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
                 //                    weav.map(_ := False)
                 //                }
             }
+        } elsewhen (io.convType === CONV_STATE.CONV11) {
+            (1 until convConfig.KERNEL_NUM).foreach(i=>{
+                weav(i).clear()
+            })
+            weav(0).set()
         } otherwise {
             weav.map(_ := False)
         }
@@ -198,7 +205,7 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
     val weightRam = Array.tabulate(convConfig.KERNEL_NUM) { i =>
         def gen = {
             val temp = new sdpram(convConfig.WEIGHT_S_DATA_WIDTH, convConfig.WEIGHT_S_DATA_DEPTH, convConfig.WEIGHT_M_DATA_WIDTH, convConfig.WEIGHT_M_DATA_DEPTH, MEM_TYPE.block, 1, CLOCK_MODE.common_clock, this.clockDomain, this.clockDomain)
-//            temp.io.wea <> RegNext(weav(i).asBits)
+            //            temp.io.wea <> RegNext(weav(i).asBits)
             temp.io.wea <> weav(i).asBits
             temp.io.ena := True
             temp.io.enb := True
