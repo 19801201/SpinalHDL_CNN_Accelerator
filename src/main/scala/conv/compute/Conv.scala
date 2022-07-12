@@ -69,8 +69,8 @@ class Conv(convConfig: ConvConfig) extends Component {
     convCompute.io.zeroNum := computeInstructionReg(CONV_STATE.Z1_NUM).asUInt.resized
     convCompute.io.quanZeroData := computeInstructionReg(CONV_STATE.Z3).asUInt.resized
     convCompute.io.convType := computeInstructionReg(CONV_STATE.CONV_TYPE).resized
-    convCompute.io.enStride := computeInstructionReg(CONV_STATE.EN_STRIDE)
-    convCompute.io.firstLayer := computeInstructionReg(CONV_STATE.FIRST_LAYER)
+    convCompute.io.enStride := computeInstructionReg(CONV_STATE.EN_STRIDE).asBool
+    convCompute.io.firstLayer := computeInstructionReg(CONV_STATE.FIRST_LAYER).asBool
     convCompute.io.amendReg := computeInstructionReg(CONV_STATE.AMEND)
 
 //    convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
@@ -79,8 +79,8 @@ class Conv(convConfig: ConvConfig) extends Component {
         convCompute.io.quanNum := computeInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
 
 
-    (convState.io.dmaReadValid & (!computeInstructionReg(CONV_STATE.FIRST_LAYER))) <> io.dmaReadValid
-    (convState.io.dmaReadValid & (computeInstructionReg(CONV_STATE.FIRST_LAYER))) <> io.dmaFirstLayerReadValid
+    (convState.io.dmaReadValid & (!computeInstructionReg(CONV_STATE.FIRST_LAYER).asBool)) <> io.dmaReadValid
+    (convState.io.dmaReadValid & (computeInstructionReg(CONV_STATE.FIRST_LAYER).asBool)) <> io.dmaFirstLayerReadValid
     convState.io.dmaWriteValid <> io.dmaWriteValid
 
 

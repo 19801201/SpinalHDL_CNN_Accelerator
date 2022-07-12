@@ -141,6 +141,14 @@ object Instruction {
     def ZERO = 159 downto 128
 
     def ZERO1 = 191 downto 160
+
+    val Reg0 = ("ROW_NUM_IN", ROW_NUM_IN.length, "COL_NUM_IN", COL_NUM_IN.length, "CHANNEL_IN", CHANNEL_IN.length)
+    val Reg1 = ("CHANNEL_IN1", CHANNEL_IN1.length)
+    val Reg2 = ("SCALE", SCALE.length)
+    val Reg3 = ("SCALE1", SCALE1.length)
+    val Reg4 = ("ZERO", ZERO.length)
+    val Reg5 = ("ZERO1", ZERO1.length)
+    val Reg = Seq(("Reg0", Reg0), ("Reg1", Reg1), ("Reg2", Reg2), ("Reg3", Reg3), ("Reg4", Reg4), ("Reg5", Reg5))
 }
 
 class ShapeState extends Component {

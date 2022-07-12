@@ -131,6 +131,12 @@ class DataGenerate(dataGenerateConfig: DataGenerateConfig) extends Component {
             featureConv11Convert.io.sData.payload := 0
             featureConv11Convert.io.mData.ready := False
             featureConv11Convert.io.start := False
+
+            io.mData.mData.foreach(i => {
+                i.valid := False
+                i.payload := 0
+            })
+            io.sData.ready := False
         }
     }
 

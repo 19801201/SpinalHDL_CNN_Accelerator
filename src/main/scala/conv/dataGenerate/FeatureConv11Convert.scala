@@ -30,7 +30,7 @@ class FeatureConv11Convert(featureGenerateConfig: FeatureGenerateConfig) extends
     fsm.sendEnd := channelCnt.valid && columnCnt.valid
     fsm.last := channelCnt.valid && columnCnt.valid && rowCnt.valid
 
-    (1 until featureGenerateConfig.COMPUTE_CHANNEL_NUM).foreach(i => {
+    (1 until featureGenerateConfig.KERNEL_NUM).foreach(i => {
         io.mData.mData(i).payload := 0
         io.mData.mData(i).valid := io.sData.fire
     })

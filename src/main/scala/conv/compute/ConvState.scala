@@ -26,7 +26,7 @@ object CONV_STATE extends Area {
 
     val CONV33 = 0
     val CONV11_8X = 1
-    val CONV11  = 2
+    val CONV11 = 2
 
     def ROW_NUM_IN = 10 downto 0
 
@@ -46,17 +46,24 @@ object CONV_STATE extends Area {
 
     def Z3 = 62 downto 55
 
-    def EN_STRIDE = 63
+    def EN_STRIDE = 63 downto 63
 
     def CONV_TYPE = 65 downto 64
 
-    def FIRST_LAYER = 66
+    def FIRST_LAYER = 66 downto 66
 
     def WEIGHT_NUM = 111 downto 96
 
     def QUAN_NUM = 127 downto 112
 
     def AMEND = 159 downto 128
+
+    val Reg0 = ("ROW_NUM_IN", ROW_NUM_IN.length, "COL_NUM_IN", COL_NUM_IN.length, "CHANNEL_IN", CHANNEL_IN.length)
+    val Reg1 = ("CHANNEL_OUT", CHANNEL_OUT.length, "EN_PADDING", EN_PADDING.length, "EN_ACTIVATION", EN_ACTIVATION.length, "Z1", Z1.length, "Z1_NUM", Z1_NUM.length, "Z3", Z3.length, "EN_STRIDE", EN_STRIDE.length)
+    val Reg2 = ("CONV_TYPE", CONV_TYPE.length, "FIRST_LAYER", FIRST_LAYER.length)
+    val Reg3 = ("WEIGHT_NUM", WEIGHT_NUM.length, "QUAN_NUM", QUAN_NUM.length)
+    val Reg4 = ("AMEND", AMEND.length)
+    val Reg = Seq(("Reg0", Reg0), ("Reg1", Reg1), ("Reg2", Reg2), ("Reg3", Reg3), ("Reg4", Reg4))
 
 }
 
@@ -145,8 +152,8 @@ case class ConvState(convConfig: ConvConfig) extends Component {
 
     val dmaReadValid = Reg(Bool()) init False
     val dmaWriteValid = Reg(Bool()) init False
-    io.dmaWriteValid := Delay(dmaWriteValid,4)
-    io.dmaReadValid := Delay(dmaReadValid,4)
+    io.dmaWriteValid := Delay(dmaWriteValid, 4)
+    io.dmaReadValid := Delay(dmaReadValid, 4)
     when(fsm.currentState === ConvStateEnum.IDLE && fsm.nextState === ConvStateEnum.PARA) {
         io.sign := CONV_STATE.PARA_SIGN
         dmaReadValid.set()
