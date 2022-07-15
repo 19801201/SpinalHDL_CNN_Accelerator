@@ -2,6 +2,7 @@ package shape
 
 import spinal.core._
 import spinal.lib._
+import wa.WaStream.{WaStreamDemux, WaStreamMux}
 import wa.WaCounter
 
 case class ShapeConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: Int, CHANNEL_WIDTH: Int, ROW_MEM_DEPTH: Int) {
@@ -105,31 +106,37 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     val rowOutTimes = Reg(UInt(instructionReg(Instruction.ROW_NUM_IN).getWidth bits))
     switch(shapeState.io.state) {
         is(State.CONCAT) {
+            dataCount := dataCount2
             colOutTimes := instructionReg(Instruction.COL_NUM_IN).asUInt
             rowOutTimes := instructionReg(Instruction.ROW_NUM_IN).asUInt
             channelOutTimes := ((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt + (instructionReg(Instruction.CHANNEL_IN1) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt).resized
         }
         is(State.ADD) {
+            dataCount := dataCount2
             colOutTimes := instructionReg(Instruction.COL_NUM_IN).asUInt
             rowOutTimes := instructionReg(Instruction.ROW_NUM_IN).asUInt
             channelOutTimes := (instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt.resized
         }
         is(State.MAX_POOLING) {
+            dataCount := dataCount1.resized
             colOutTimes := (instructionReg(Instruction.COL_NUM_IN) >> 1).asUInt.resized
             rowOutTimes := (instructionReg(Instruction.ROW_NUM_IN) >> 1).asUInt.resized
             channelOutTimes := (instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt.resized
         }
         is(State.UP_SAMPLING) {
+            dataCount := dataCount2
             colOutTimes := (instructionReg(Instruction.COL_NUM_IN) << 1).asUInt.resized
             rowOutTimes := (instructionReg(Instruction.ROW_NUM_IN) << 1).asUInt.resized
             channelOutTimes := (instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt.resized
         }
         is(State.SPLIT) {
+            dataCount := dataCount1.resized
             colOutTimes := instructionReg(Instruction.COL_NUM_IN).asUInt
             rowOutTimes := instructionReg(Instruction.ROW_NUM_IN).asUInt
             channelOutTimes := (instructionReg(Instruction.CHANNEL_IN) >> (1 + log2Up(shapeConfig.COMPUTE_CHANNEL_NUM))).asUInt.resized
         }
         default {
+            dataCount := 0
             colOutTimes := colOutTimes
             rowOutTimes := rowOutTimes
             channelOutTimes := channelOutTimes
@@ -146,115 +153,123 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
         fifoReady := False
     }
 
-    switch(shapeState.io.state) {
-        is(State.CONCAT) {
-            io.sData(0) <> concat.dataPort.sData
-            io.sData(1) <> concat.sData1
-            fifo.io.push <> concat.dataPort.mData
-            dataCount := dataCount2
-            clearS(maxPooling.io.sData)
-            clearS(split.io.sData)
-            clearS(upSampling.io.sData)
-            clearM(maxPooling.io.mData)
-            clearM(upSampling.io.mData)
-            clearM(split.io.mData)
-            clearS(add.sData1)
-            clearS(add.dataPort.sData)
-            clearM(add.dataPort.mData)
-        }
-        is(State.ADD) {
-            io.sData(0) <> add.dataPort.sData
-            io.sData(1) <> add.sData1
-            fifo.io.push <> add.dataPort.mData
-            dataCount := dataCount2
-            clearS(concat.sData1)
-            clearS(concat.dataPort.sData)
-            clearS(maxPooling.io.sData)
-            clearS(split.io.sData)
-            clearS(upSampling.io.sData)
-            clearM(concat.dataPort.mData)
-            clearM(maxPooling.io.mData)
-            clearM(upSampling.io.mData)
-            clearM(split.io.mData)
-        }
-        is(State.MAX_POOLING) {
-            io.sData(0) <> maxPooling.io.sData
-            io.sData(1).ready <> False
-            fifo.io.push <> maxPooling.io.mData
-            dataCount := dataCount1.resized
-            clearS(concat.sData1)
-            clearS(concat.dataPort.sData)
-            clearS(split.io.sData)
-            clearS(upSampling.io.sData)
-            clearM(concat.dataPort.mData)
-            clearM(upSampling.io.mData)
-            clearM(split.io.mData)
-            clearS(add.sData1)
-            clearS(add.dataPort.sData)
-            clearM(add.dataPort.mData)
-        }
-        is(State.UP_SAMPLING) {
-            io.sData(0) <> upSampling.io.sData
-            io.sData(1).ready <> False
-            fifo.io.push <> upSampling.io.mData
-            dataCount := dataCount2
-            clearS(concat.sData1)
-            clearS(concat.dataPort.sData)
-            clearS(maxPooling.io.sData)
-            clearS(split.io.sData)
-            clearM(concat.dataPort.mData)
-            clearM(maxPooling.io.mData)
-            clearM(split.io.mData)
-            clearS(add.sData1)
-            clearS(add.dataPort.sData)
-            clearM(add.dataPort.mData)
-        }
-        is(State.SPLIT) {
-            io.sData(0) <> split.io.sData
-            io.sData(1).ready <> False
-            fifo.io.push <> split.io.mData
-            dataCount := dataCount1.resized
-            clearS(concat.sData1)
-            clearS(concat.dataPort.sData)
-            clearS(maxPooling.io.sData)
-            clearS(upSampling.io.sData)
-            clearM(concat.dataPort.mData)
-            clearM(maxPooling.io.mData)
-            clearM(upSampling.io.mData)
-            clearS(add.sData1)
-            clearS(add.dataPort.sData)
-            clearM(add.dataPort.mData)
-        }
-        default {
-            io.sData(0).ready := False
-            io.sData(1).ready := False
-            dataCount := 0
-            clearS(concat.sData1)
-            clearS(concat.dataPort.sData)
-            clearS(maxPooling.io.sData)
-            clearS(split.io.sData)
-            clearS(upSampling.io.sData)
-            clearS(fifo.io.push)
-            //            fifo.io.push.valid := False
-            //            fifo.io.push.payload := 0
-            clearM(concat.dataPort.mData)
-            clearM(maxPooling.io.mData)
-            clearM(upSampling.io.mData)
-            clearM(split.io.mData)
-            clearS(add.sData1)
-            clearS(add.dataPort.sData)
-            clearM(add.dataPort.mData)
-        }
-    }
 
-    def clearS(s: Stream[UInt]): Unit = {
-        s.payload := 0
-        s.valid := False
-    }
+    val s = Vec(Stream(UInt(io.sData(1).payload.getWidth bits)), 3)
+    s.foreach(a => a.ready := False)
+    Vec(concat.dataPort.sData, add.dataPort.sData, maxPooling.io.sData, upSampling.io.sData, split.io.sData) <> WaStreamDemux(Seq(State.CONCAT, State.ADD, State.MAX_POOLING, State.UP_SAMPLING, State.SPLIT), io.sData(0), shapeState.io.state)
+    Vec(concat.sData1, add.sData1, s(0), s(1), s(2)) <> WaStreamDemux(Seq(State.CONCAT, State.ADD, State.MAX_POOLING, State.UP_SAMPLING, State.SPLIT), io.sData(1), shapeState.io.state)
 
-    def clearM(m: Stream[UInt]): Unit = {
-        m.ready := False
-    }
+    fifo.io.push <> WaStreamMux(Seq(State.CONCAT, State.ADD, State.MAX_POOLING, State.UP_SAMPLING, State.SPLIT), shapeState.io.state, Seq(concat.dataPort.mData, add.dataPort.mData, maxPooling.io.mData, upSampling.io.mData, split.io.mData))
+
+    //    switch(shapeState.io.state) {
+    //        is(State.CONCAT) {
+    //            io.sData(0) <> concat.dataPort.sData
+    //            io.sData(1) <> concat.sData1
+    //            fifo.io.push <> concat.dataPort.mData
+    //            dataCount := dataCount2
+    //            clearS(maxPooling.io.sData)
+    //            clearS(split.io.sData)
+    //            clearS(upSampling.io.sData)
+    //            clearM(maxPooling.io.mData)
+    //            clearM(upSampling.io.mData)
+    //            clearM(split.io.mData)
+    //            clearS(add.sData1)
+    //            clearS(add.dataPort.sData)
+    //            clearM(add.dataPort.mData)
+    //        }
+    //        is(State.ADD) {
+    //            io.sData(0) <> add.dataPort.sData
+    //            io.sData(1) <> add.sData1
+    //            fifo.io.push <> add.dataPort.mData
+    //            dataCount := dataCount2
+    //            clearS(concat.sData1)
+    //            clearS(concat.dataPort.sData)
+    //            clearS(maxPooling.io.sData)
+    //            clearS(split.io.sData)
+    //            clearS(upSampling.io.sData)
+    //            clearM(concat.dataPort.mData)
+    //            clearM(maxPooling.io.mData)
+    //            clearM(upSampling.io.mData)
+    //            clearM(split.io.mData)
+    //        }
+    //        is(State.MAX_POOLING) {
+    //            io.sData(0) <> maxPooling.io.sData
+    //            io.sData(1).ready <> False
+    //            fifo.io.push <> maxPooling.io.mData
+    //            dataCount := dataCount1.resized
+    //            clearS(concat.sData1)
+    //            clearS(concat.dataPort.sData)
+    //            clearS(split.io.sData)
+    //            clearS(upSampling.io.sData)
+    //            clearM(concat.dataPort.mData)
+    //            clearM(upSampling.io.mData)
+    //            clearM(split.io.mData)
+    //            clearS(add.sData1)
+    //            clearS(add.dataPort.sData)
+    //            clearM(add.dataPort.mData)
+    //        }
+    //        is(State.UP_SAMPLING) {
+    //            io.sData(0) <> upSampling.io.sData
+    //            io.sData(1).ready <> False
+    //            fifo.io.push <> upSampling.io.mData
+    //            dataCount := dataCount2
+    //            clearS(concat.sData1)
+    //            clearS(concat.dataPort.sData)
+    //            clearS(maxPooling.io.sData)
+    //            clearS(split.io.sData)
+    //            clearM(concat.dataPort.mData)
+    //            clearM(maxPooling.io.mData)
+    //            clearM(split.io.mData)
+    //            clearS(add.sData1)
+    //            clearS(add.dataPort.sData)
+    //            clearM(add.dataPort.mData)
+    //        }
+    //        is(State.SPLIT) {
+    //            io.sData(0) <> split.io.sData
+    //            io.sData(1).ready <> False
+    //            fifo.io.push <> split.io.mData
+    //            dataCount := dataCount1.resized
+    //            clearS(concat.sData1)
+    //            clearS(concat.dataPort.sData)
+    //            clearS(maxPooling.io.sData)
+    //            clearS(upSampling.io.sData)
+    //            clearM(concat.dataPort.mData)
+    //            clearM(maxPooling.io.mData)
+    //            clearM(upSampling.io.mData)
+    //            clearS(add.sData1)
+    //            clearS(add.dataPort.sData)
+    //            clearM(add.dataPort.mData)
+    //        }
+    //        default {
+    //            io.sData(0).ready := False
+    //            io.sData(1).ready := False
+    //            dataCount := 0
+    //            clearS(concat.sData1)
+    //            clearS(concat.dataPort.sData)
+    //            clearS(maxPooling.io.sData)
+    //            clearS(split.io.sData)
+    //            clearS(upSampling.io.sData)
+    //            clearS(fifo.io.push)
+    //            //            fifo.io.push.valid := False
+    //            //            fifo.io.push.payload := 0
+    //            clearM(concat.dataPort.mData)
+    //            clearM(maxPooling.io.mData)
+    //            clearM(upSampling.io.mData)
+    //            clearM(split.io.mData)
+    //            clearS(add.sData1)
+    //            clearS(add.dataPort.sData)
+    //            clearM(add.dataPort.mData)
+    //        }
+    //    }
+    //
+    //    def clearS(s: Stream[UInt]): Unit = {
+    //        s.payload := 0
+    //        s.valid := False
+    //    }
+    //
+    //    def clearM(m: Stream[UInt]): Unit = {
+    //        m.ready := False
+    //    }
 }
 
 object Shape extends App {
