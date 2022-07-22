@@ -21,12 +21,16 @@ class Instruction extends Component {
     val bus = BusInterface(io.regSData, sizeMap = SizeMapping(0, registerAddrSize))
     val convStateReg = bus.newReg(doc = "卷积状态指令")
     val convControlReg = bus.newReg(doc = "卷积控制指令")
-    val convState = convStateReg.field(Bits(4 bits), RO, doc = "卷积的状态").asInput()
+    val convState = in Bits (4 bits)
+    val t1 = convStateReg.field(Bits(4 bits), RO, doc = "卷积的状态")
+    t1 := convState
     val convControl = convControlReg.field(Bits(4 bits), WO, doc = "卷积的控制指令").asOutput()
 
     val shapeStateReg = bus.newReg(doc = "shape状态指令")
     val shapeControlReg = bus.newReg(doc = "shape控制指令")
-    val shapeState = shapeStateReg.field(Bits(4 bits), RO, doc = "shape的状态").asInput()
+    val shapeState = in Bits (4 bits)
+    val t2 = shapeStateReg.field(Bits(4 bits), RO, doc = "shape的状态")
+    t2 := shapeState
     val shapeControl = shapeControlReg.field(Bits(4 bits), WO, doc = "shape的控制指令").asOutput()
 
     //    val ins = Array.tabulate(6) { i => {

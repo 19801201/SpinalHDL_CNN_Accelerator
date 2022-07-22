@@ -16,3 +16,10 @@ class Rom(dataWidth:Int,dataCount:Int,memPath:String) extends Component {
     instRom.initBigInt(seq,allowNegative = true)
     io.data := instRom.readAsync(io.addr)
 }
+
+object Rom extends App {
+    SpinalConfig(globalPrefix = "weight1").generateVerilog(new Rom(64,336,"simData/player1.coe").setName("weight1"))
+    SpinalConfig(globalPrefix = "feature1").generateVerilog(new Rom(8,409600,"simData/quant(2).coe").setName("feature1"))
+    SpinalConfig(globalPrefix = "weight2").generateVerilog(new Rom(64,2400,"simData/player2.coe").setName("weight2"))
+    SpinalConfig(globalPrefix = "feature2").generateVerilog(new Rom(64,409600,"simData/conv1.coe").setName("feature2"))
+}
