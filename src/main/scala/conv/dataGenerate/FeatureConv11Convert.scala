@@ -21,14 +21,14 @@ class FeatureConv11Convert(featureGenerateConfig: FeatureGenerateConfig) extends
     val initCnt = WaCounter(fsm.currentState === FeatureWidthConvertEnum.INIT, 3, 7)
     fsm.initEnd := initCnt.valid
 
-    val channelInTimes = RegNext(io.channelIn >> (log2Up(featureGenerateConfig.COMPUTE_CHANNEL_NUM) + 3))
+    val channelInTimes = RegNext(io.channelIn >> log2Up(featureGenerateConfig.COMPUTE_CHANNEL_NUM))
     val channelCnt = WaCounter(io.sData.fire, featureGenerateConfig.CHANNEL_WIDTH, channelInTimes - 1)
     val columnCnt = WaCounter(channelCnt.valid, featureGenerateConfig.FEATURE_WIDTH, io.colNumIn - 1)
     val rowCnt = WaCounter(fsm.currentState === FeatureWidthConvertEnum.END, featureGenerateConfig.FEATURE_WIDTH, io.rowNumIn - 1)
     // val mCount = RegNext(channelInTimes * io.colNumIn)
     fsm.fifoReady := io.mData.ready
     fsm.sendEnd := channelCnt.valid && columnCnt.valid
-    fsm.last := channelCnt.valid && columnCnt.valid && rowCnt.valid
+    fsm.last := rowCnt.valid
 
     (1 until featureGenerateConfig.KERNEL_NUM).foreach(i => {
         io.mData.mData(i).payload := 0

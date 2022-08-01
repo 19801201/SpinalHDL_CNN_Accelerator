@@ -87,7 +87,7 @@ class FeatureWidthConvert(featureGenerateConfig: FeatureGenerateConfig) extends 
    // val mCount = RegNext(channelInTimes * io.colNumIn)
     fsm.fifoReady := io.mData.ready
     fsm.sendEnd := channelCnt.valid && columnCnt.valid
-    fsm.last := channelCnt.valid && columnCnt.valid && rowCnt.valid
+    fsm.last := rowCnt.valid
 
     dataCvt.io.sData <> io.sData
     (0 until 8).foreach(i => {

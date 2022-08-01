@@ -111,10 +111,22 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
 
     val initCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.INIT, 3, 7)
     val temp = UInt(convConfig.CHANNEL_WIDTH bits)
-    when(io.convType === CONV_STATE.CONV33) {
-        temp := (io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)).resized
-    } otherwise {
-        temp := (io.channelIn >> (log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM) + 3)).resized
+//    when(io.convType === CONV_STATE.CONV33) {
+//        temp := (io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)).resized
+//    } otherwise {
+//        temp := (io.channelIn >> (log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM) + 3)).resized
+//    }
+    switch(io.convType)
+    {
+        is(CONV_STATE.CONV33,CONV_STATE.CONV11){
+            temp := (io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)).resized
+        }
+        is(CONV_STATE.CONV11_8X) {
+            temp := (io.channelIn >> (log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM) + 3)).resized
+        }
+        default{
+            temp := 0
+        }
     }
     val channelInTimes = RegNext(temp)
 
