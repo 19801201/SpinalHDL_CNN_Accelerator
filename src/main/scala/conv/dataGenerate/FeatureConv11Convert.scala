@@ -28,7 +28,7 @@ class FeatureConv11Convert(featureGenerateConfig: FeatureGenerateConfig) extends
     // val mCount = RegNext(channelInTimes * io.colNumIn)
     fsm.fifoReady := io.mData.ready
     fsm.sendEnd := channelCnt.valid && columnCnt.valid
-    fsm.last := rowCnt.valid
+    fsm.last := rowCnt.valid && channelCnt.valid && columnCnt.valid
 
     (1 until featureGenerateConfig.KERNEL_NUM).foreach(i => {
         io.mData.mData(i).payload := 0

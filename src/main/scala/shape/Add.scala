@@ -105,10 +105,10 @@ class Add(addConfig: AddConfig) extends Component {
     mem1.io.push <> dataPort.sData
     mem2.io.push <> sData1
 
-    when(mem1.io.availability < cnt || mem2.io.availability < cnt) {
-        fsm.dataReady := False
-    } otherwise {
+    when(mem1.io.occupancy >= cnt && mem2.io.occupancy >= cnt) {
         fsm.dataReady := True
+    } otherwise {
+        fsm.dataReady := False
     }
     when(fsm.currentState === AddMachineEnum.COMPUTE) {
         mem1.io.pop.ready := True

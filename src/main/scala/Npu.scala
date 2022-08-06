@@ -92,21 +92,21 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
         }
 
         val io = new Bundle {
-            val convSData = slave Stream UInt(convConfig.FEATURE_S_DATA_WIDTH bits) setName("convSData")
-            val convFirstLayerSData = slave Stream UInt(firstLayerWidth bits) setName("convFirstLayerSData")
-            val convMData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits) setName("convMData")
-            val shapeSData = slave Stream UInt(shapeConfig.STREAM_DATA_WIDTH bits) setName("shapeSData")
-            val shapeSData1 = slave Stream UInt(shapeConfig.STREAM_DATA_WIDTH bits) setName("shapeSData1")
-            val shapeMData = master Stream UInt(shapeConfig.STREAM_DATA_WIDTH bits) setName("shapeMData")
+            val convSData = slave Stream UInt(convConfig.FEATURE_S_DATA_WIDTH bits) setName ("convSData")
+            val convFirstLayerSData = slave Stream UInt(firstLayerWidth bits) setName ("convFirstLayerSData")
+            val convMData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits) setName ("convMData")
+            val shapeSData = slave Stream UInt(shapeConfig.STREAM_DATA_WIDTH bits) setName ("shapeSData")
+            val shapeSData1 = slave Stream UInt(shapeConfig.STREAM_DATA_WIDTH bits) setName ("shapeSData1")
+            val shapeMData = master Stream UInt(shapeConfig.STREAM_DATA_WIDTH bits) setName ("shapeMData")
 
-            val convSDataCmd = Cmd() setName("convSDataCmd")
-            val convFirstLayerSDataCmd = Cmd() setName("convFirstLayerSDataCmd")
-            val convMDataCmd = Cmd() setName("convMDataCmd")
-            val shapeSDataCmd = Cmd() setName("shapeSDataCmd")
-            val shapeSData1Cmd = Cmd() setName("shapeSData1Cmd")
-            val shapeMDataCmd = Cmd() setName("shapeMDataCmd")
-            val convMLast = out Bool() setName("convMLast")
-            val shapeMLast = out Bool() setName("shapeMLast")
+            val convSDataCmd = Cmd() setName ("convSDataCmd")
+            val convFirstLayerSDataCmd = Cmd() setName ("convFirstLayerSDataCmd")
+            val convMDataCmd = Cmd() setName ("convMDataCmd")
+            val shapeSDataCmd = Cmd() setName ("shapeSDataCmd")
+            val shapeSData1Cmd = Cmd() setName ("shapeSData1Cmd")
+            val shapeMDataCmd = Cmd() setName ("shapeMDataCmd")
+            val convMLast = out Bool() setName ("convMLast")
+            val shapeMLast = out Bool() setName ("shapeMLast")
 
         }
         noIoPrefix()
@@ -147,12 +147,12 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
 
 
     register.io.regSData <> regSData
-//    (0 until 5).foreach(i => {
-//        register.ins(i) <> conv.io.instruction(i)
-//    })
-//    (0 until 6).foreach(i => {
-//        register.ins(i) <> shape.io.instruction(i)
-//    })
+    //    (0 until 5).foreach(i => {
+    //        register.ins(i) <> conv.io.instruction(i)
+    //    })
+    //    (0 until 6).foreach(i => {
+    //        register.ins(i) <> shape.io.instruction(i)
+    //    })
     register.io.convInstruction <> conv.io.instruction
     register.io.shapeInstruction <> shape.io.instruction
     register.convState <> conv.io.state
@@ -166,7 +166,7 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
 object Npu extends App {
     //    SpinalVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 416, 10, 1024)))
     //    TotalTcl(Config.filePath + File.separator + "tcl", Config.filePath).genTotalTcl
-    val clockCfg = ClockDomainConfig(resetKind = SYNC,resetActiveLevel = HIGH)
-    SpinalConfig(defaultConfigForClockDomains = clockCfg,targetDirectory = Config.filePath + File.separator + "rtl").generateVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 640, 2048, 1), ShapeConfig(8, 8, 640, 12, 2048)))
+    val clockCfg = ClockDomainConfig(resetKind = SYNC, resetActiveLevel = HIGH)
+    SpinalConfig(oneFilePerComponent = false, defaultConfigForClockDomains = clockCfg, targetDirectory = Config.filePath + File.separator + "rtl").generateVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 640, 2048, 1), ShapeConfig(8, 8, 640, 12, 2048)))
     TotalTcl(Config.filePath + File.separator + "tcl", Config.filePath).genTotalTcl
 }
