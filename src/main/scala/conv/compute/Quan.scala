@@ -96,7 +96,7 @@ class Scale(convConfig: ConvConfig) extends Component {
     val scaleMulOut = Vec(SInt(32 bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
     val scaleMul = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM)(i => {
         def gen = {
-            val mul = Mul(48, 32, 32, MulConfig.signed, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "scaleMul", 79, 48, i == 0)
+            val mul = Mul(48, 32, 32, MulConfig.signed, MulConfig.unsigned, 8, MulConfig.dsp, this.clockDomain, "scaleMul", 79, 48, i == 0)
             mul.io.A <> port.dataIn(i)
             mul.io.B <> port.quan(i)
             mul.io.P <> scaleMulOut(i)

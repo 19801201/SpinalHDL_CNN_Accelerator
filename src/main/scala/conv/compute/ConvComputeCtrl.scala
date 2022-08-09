@@ -183,7 +183,7 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     //这个值有待测试其他情况
     val normDelayCount = 2 + (if (!config.Config.dsp2x) 3 else 10) + 4 + log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)
     val biasDelayCount = normDelayCount - 1
-    val scaleDealyCount = 3
+    val scaleDealyCount = 8
     val shiftDealyCount = 1
     val activationDealyCount = 8
     val mValidDelayCountActivation = normDelayCount + 2 + scaleDealyCount + shiftDealyCount + activationDealyCount + 2
