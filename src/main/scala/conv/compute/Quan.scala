@@ -28,7 +28,7 @@ class Quan(convConfig: ConvConfig) extends Component {
 
     val shift = new Shift(convConfig)
     shift.port.dataIn <> scale.port.dataOut
-    shift.port.quan <> Delay(io.shiftIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 5)
+    shift.port.quan <> Delay(io.shiftIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 10)
 
     val zero = new Zero(convConfig)
     zero.io.dataIn <> shift.port.dataOut
