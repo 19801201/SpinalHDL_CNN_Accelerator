@@ -19,7 +19,7 @@ class Quan(convConfig: ConvConfig) extends Component {
     }
     noIoPrefix()
     val bias = new Bias(convConfig)
-    bias.port.dataIn <> io.dataIn
+    bias.port.dataIn <> RegNext(io.dataIn)
     bias.port.quan <> io.biasIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices)
 
     val scale = new Scale(convConfig)

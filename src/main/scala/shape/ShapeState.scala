@@ -41,36 +41,39 @@ case class ShapeStateFsm(control: Bits, complete: Bool) extends Area {
     currentState := nextState
     switch(currentState) {
         is(ShapeStateEnum.IDLE) {
-            //            switch(control) {
-            //                is(Control.MAX_POOLING) {
-            //                    nextState := ShapeStateEnum.MAX_POOLING
-            //                }
-            //                is(Control.SPLIT) {
-            //                    nextState := ShapeStateEnum.SPLIT
-            //                }
-            //                is(Control.UP_SAMPLING) {
-            //                    nextState := ShapeStateEnum.UP_SAMPLING
-            //                }
-            //                is(Control.CONCAT) {
-            //                    nextState := ShapeStateEnum.CONCAT
-            //                }
-            //                default {
-            //                    nextState := ShapeStateEnum.IDLE
-            //                }
-            //            }
-            when(control === Control.MAX_POOLING) {
-                nextState := ShapeStateEnum.MAX_POOLING
-            } elsewhen (control === Control.SPLIT) {
-                nextState := ShapeStateEnum.SPLIT
-            } elsewhen (control === Control.UP_SAMPLING) {
-                nextState := ShapeStateEnum.UP_SAMPLING
-            } elsewhen (control === Control.CONCAT) {
-                nextState := ShapeStateEnum.CONCAT
-            } elsewhen (control === Control.ADD) {
-                nextState := ShapeStateEnum.ADD
-            } otherwise {
-                nextState := ShapeStateEnum.IDLE
+            switch(control) {
+                is(Control.MAX_POOLING) {
+                    nextState := ShapeStateEnum.MAX_POOLING
+                }
+                is(Control.SPLIT) {
+                    nextState := ShapeStateEnum.SPLIT
+                }
+                is(Control.UP_SAMPLING) {
+                    nextState := ShapeStateEnum.UP_SAMPLING
+                }
+                is(Control.CONCAT) {
+                    nextState := ShapeStateEnum.CONCAT
+                }
+                is(Control.ADD) {
+                    nextState := ShapeStateEnum.ADD
+                }
+                default {
+                    nextState := ShapeStateEnum.IDLE
+                }
             }
+            //            when(control === Control.MAX_POOLING) {
+            //                nextState := ShapeStateEnum.MAX_POOLING
+            //            } elsewhen (control === Control.SPLIT) {
+            //                nextState := ShapeStateEnum.SPLIT
+            //            } elsewhen (control === Control.UP_SAMPLING) {
+            //                nextState := ShapeStateEnum.UP_SAMPLING
+            //            } elsewhen (control === Control.CONCAT) {
+            //                nextState := ShapeStateEnum.CONCAT
+            //            } elsewhen (control === Control.ADD) {
+            //                nextState := ShapeStateEnum.ADD
+            //            } otherwise {
+            //                nextState := ShapeStateEnum.IDLE
+            //            }
         }
         is(ShapeStateEnum.MAX_POOLING) {
             when(complete) {

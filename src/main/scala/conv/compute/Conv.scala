@@ -100,7 +100,7 @@ class Conv(convConfig: ConvConfig) extends Component {
         convState.io.complete := 0
     }
 
-    val dest = Reg(Bits(2 bits)) init 3
+    val dest = Reg(Bits(2 bits)) init 3 addAttribute  ("max_fanout = \"10\"")
     when(io.control === CONV_STATE.START_PA) {
         dest := 0
     } elsewhen (io.control === CONV_STATE.START_CU) {

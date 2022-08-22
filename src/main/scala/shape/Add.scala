@@ -136,7 +136,7 @@ class Add(addConfig: AddConfig) extends Component {
     val dataTemp = Vec(SInt(64 bits), addConfig.COMPUTE_CHANNEL_NUM)
     val add = Array.tabulate(addConfig.COMPUTE_CHANNEL_NUM)(i => {
         def gen = {
-            val addZero = AddSub(64, 64, 64, AddSubConfig.signed, AddSubConfig.signed, 2, AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "addAdd64_64", i == 0)
+            val addZero = AddSub(64, 64, 64, AddSubConfig.signed, AddSubConfig.signed, 2 + 3, AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "addAdd64_64", i == 0)
             addZero.io.A <> addScale1.io.dataOut(i)
             addZero.io.B <> addScale2.io.dataOut(i)
             addZero.io.S <> dataTemp(i)
@@ -165,7 +165,7 @@ class Add(addConfig: AddConfig) extends Component {
         dataPort.mData.payload.subdivideIn(addConfig.COMPUTE_CHANNEL_NUM slices)(i) := temp8
     })
 
-    dataPort.mData.valid := Delay(mem1.io.pop.fire, 9)
+    dataPort.mData.valid := Delay(mem1.io.pop.fire, 9 + 6)
 }
 
 case class AddAdd(addConfig: AddConfig) extends Component {
@@ -202,7 +202,7 @@ case class AddScale(addConfig: AddConfig) extends Component {
     noIoPrefix()
     val mulScale = Array.tabulate(addConfig.COMPUTE_CHANNEL_NUM)(i => {
         def gen = {
-            val mul = Mul(32, 32, 64, MulConfig.signed, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "addMul", 63, 0, i == 0)
+            val mul = Mul(32, 32, 64, MulConfig.signed, MulConfig.unsigned, 3 + 3, MulConfig.dsp, this.clockDomain, "addMul", 63, 0, i == 0)
             mul.io.A <> io.dataIn(i)
             mul.io.B <> io.scale
             mul.io.P <> io.dataOut(i)

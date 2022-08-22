@@ -115,7 +115,7 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     wrData(1) := rdData(0)
     val mem = Array.tabulate(2)(i => {
         def gen(): Mem[UInt] = {
-            val mem = Mem(UInt(featureGenerateConfig.STREAM_DATA_WIDTH bits), wordCount = featureGenerateConfig.FEATURE_RAM_DEPTH)
+            val mem = Mem(UInt(featureGenerateConfig.STREAM_DATA_WIDTH bits), wordCount = featureGenerateConfig.FEATURE_RAM_DEPTH).addAttribute("ram_style = \"block\"")
             mem.write(wrAddr, wrData(i), RegNext(io.sData.fire))
             rdData(i) := mem.readSync(rdAddr)
             mem

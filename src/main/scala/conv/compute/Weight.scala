@@ -204,7 +204,7 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
     })
     val weightRam = Array.tabulate(convConfig.KERNEL_NUM) { i =>
         def gen = {
-            val temp = new sdpram(convConfig.WEIGHT_S_DATA_WIDTH, convConfig.WEIGHT_S_DATA_DEPTH, convConfig.WEIGHT_M_DATA_WIDTH, convConfig.WEIGHT_M_DATA_DEPTH, MEM_TYPE.block, 1, CLOCK_MODE.common_clock, this.clockDomain, this.clockDomain)
+            val temp = new sdpram(convConfig.WEIGHT_S_DATA_WIDTH, convConfig.WEIGHT_S_DATA_DEPTH, convConfig.WEIGHT_M_DATA_WIDTH, convConfig.WEIGHT_M_DATA_DEPTH, MEM_TYPE.block, 2, CLOCK_MODE.common_clock, this.clockDomain, this.clockDomain)
             //            temp.io.wea <> RegNext(weav(i).asBits)
             temp.io.wea <> weav(i).asBits
             temp.io.ena := True
@@ -222,7 +222,7 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
 
     case class copyQuan(enCnt: Bool, wea: Bool, dina: UInt, addrb: UInt, doutb: UInt, clk: ClockDomain) extends Area {
         val copyCnt = WaCounter(enCnt, log2Up(convConfig.QUAN_S_DATA_DEPTH), io.quanNum - 1)
-        val ram = new sdpram(convConfig.QUAN_S_DATA_WIDTH, convConfig.QUAN_S_DATA_DEPTH, convConfig.QUAN_M_DATA_WIDTH, convConfig.QUAN_M_DATA_DEPTH, MEM_TYPE.block, 1, CLOCK_MODE.common_clock, clk, clk)
+        val ram = new sdpram(convConfig.QUAN_S_DATA_WIDTH, convConfig.QUAN_S_DATA_DEPTH, convConfig.QUAN_M_DATA_WIDTH, convConfig.QUAN_M_DATA_DEPTH, MEM_TYPE.block, 2, CLOCK_MODE.common_clock, clk, clk)
         ram.io.ena <> True
         ram.io.wea <> wea.asBits
         ram.io.dina <> dina.asBits

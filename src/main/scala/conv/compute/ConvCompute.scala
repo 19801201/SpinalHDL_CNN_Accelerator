@@ -150,7 +150,8 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
                 //            mem.io.enb <> True
                 val mem = new Mem(UInt(convConfig.FEATURE_S_DATA_WIDTH bits), wordCount = convConfig.FEATURE_MEM_DEPTH)
                 mem.write(computeCtrl.io.featureMemWriteAddr, featureFifo(i).dout, featureFifo(i).rd_en)
-                featureMemOutData(i) := mem.readAsync(computeCtrl.io.featureMemReadAddr)
+//                featureMemOutData(i) := mem.readAsync(computeCtrl.io.featureMemReadAddr)
+                featureMemOutData(i) := mem.readSync(computeCtrl.io.featureMemReadAddr)
                 mem
             }
 

@@ -42,7 +42,7 @@ class UpSampling(upSamplingConfig: UpSamplingConfig) extends Component {
     }
     fsm.last := RegNext(rowCnt.valid)
 
-    val dataTemp = StreamFifo(UInt(upSamplingConfig.STREAM_DATA_WIDTH bits), upSamplingConfig.ROW_MEM_DEPTH)
+    val dataTemp = StreamFifo(UInt(upSamplingConfig.STREAM_DATA_WIDTH bits), upSamplingConfig.ROW_MEM_DEPTH).addAttribute("ram_style = \"block\"")
 
     val channelMem = StreamFifo(UInt(upSamplingConfig.STREAM_DATA_WIDTH bits), upSamplingConfig.channelMemDepth)
 
