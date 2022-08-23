@@ -72,7 +72,7 @@ class Concat(concatConfig: ConcatConfig) extends Component {
     concatScale.io.dataIn <> concatZero.io.dataOut
     concatScale.io.scale := Delay(scaleTemp, 2)
     dataPort.mData.payload.subdivideIn(concatConfig.COMPUTE_CHANNEL_NUM slices) <> concatScale.io.dataOut
-    dataPort.mData.valid := Delay(dataPort.sData.fire || sData1.fire, 7)
+    dataPort.mData.valid := Delay(dataPort.sData.fire || sData1.fire, 7 + 3)
 }
 
 case class ConcatZero(concatConfig: ConcatConfig) extends Component {
@@ -88,7 +88,7 @@ case class ConcatZero(concatConfig: ConcatConfig) extends Component {
 
     val add = Array.tabulate(concatConfig.COMPUTE_CHANNEL_NUM)(i => {
         def gen = {
-            val addZero = AddSub(32, 32, 32, AddSubConfig.signed, AddSubConfig.unsigned, 2, AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "concatAdd", i == 0)
+            val addZero = AddSub(32, 32, 32, AddSubConfig.signed, AddSubConfig.unsigned, 2, AddSubConfig.dsp, this.clockDomain, AddSubConfig.add, "concatAdd", i == 0)
             addZero.io.A <> S"8'd0" @@ dataInTemp(i) @@ S"16'd0"
             addZero.io.B <> io.zero
             addZero.io.S <> io.dataOut(i)
@@ -111,7 +111,7 @@ case class ConcatScale(concatConfig: ConcatConfig) extends Component {
     val mulDataOut = Vec(SInt(33 bits), concatConfig.COMPUTE_CHANNEL_NUM)
     val mulScale = Array.tabulate(concatConfig.COMPUTE_CHANNEL_NUM)(i => {
         def gen = {
-            val mul = Mul(32, 32, 33, MulConfig.signed, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "concatMul", 63, 31, i == 0)
+            val mul = Mul(32, 32, 33, MulConfig.signed, MulConfig.unsigned, 3 + 3, MulConfig.dsp, this.clockDomain, "concatMul", 63, 31, i == 0)
             mul.io.A <> io.dataIn(i)
             mul.io.B <> io.scale
             mul.io.P <> mulDataOut(i)

@@ -2,7 +2,7 @@ package shape
 
 import spinal.core._
 import spinal.lib._
-import wa.WaStream.{WaStreamDemux, WaStreamMux}
+import wa.WaStream.{WaStreamDemux, WaStreamFifoPipe, WaStreamMux}
 import wa.WaCounter
 
 case class ShapeConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: Int, CHANNEL_WIDTH: Int, ROW_MEM_DEPTH: Int) {
@@ -98,7 +98,7 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     val dataCount2 = RegNext(dataCount1 |<< 1)
     val dataCount = UInt(dataCount2.getWidth bits)
 
-    val fifo = StreamFifo(UInt(shapeConfig.STREAM_DATA_WIDTH bits), shapeConfig.ROW_MEM_DEPTH << 1)
+    val fifo = WaStreamFifoPipe(UInt(shapeConfig.STREAM_DATA_WIDTH bits), shapeConfig.ROW_MEM_DEPTH << 1)
     fifo.io.pop <> io.mData
 
     val channelOutTimes = Reg(UInt(instructionReg(Instruction.CHANNEL_IN).getWidth bits))

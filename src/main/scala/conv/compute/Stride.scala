@@ -3,6 +3,7 @@ package conv.compute
 import spinal.core._
 import spinal.lib._
 import wa.WaCounter
+import wa.WaStream.WaStreamFifoPipe
 
 object StrideEnum extends SpinalEnum(defaultEncoding = binaryOneHot) {
     val IDLE, INIT, STRIDE = newElement
@@ -58,7 +59,7 @@ class Stride(convConfig: ConvConfig) extends Component {
     noIoPrefix()
 
     val fsm = StrideFsm(io.start, io.complete)
-    val fifo = StreamFifo(UInt(convConfig.FEATURE_M_DATA_WIDTH bits), convConfig.strideFifoDepth)
+    val fifo = WaStreamFifoPipe(UInt(convConfig.FEATURE_M_DATA_WIDTH bits), convConfig.strideFifoDepth)
 
     val initCnt = WaCounter(fsm.currentState === StrideEnum.INIT, 3, 7)
     fsm.initEnd := initCnt.valid

@@ -3,6 +3,7 @@ package shape
 import spinal.core._
 import spinal.lib._
 import wa.WaCounter
+import wa.WaStream.WaStreamFifoPipe
 
 case class UpSamplingConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: Int, CHANNEL_WIDTH: Int, ROW_MEM_DEPTH: Int) {
     val STREAM_DATA_WIDTH = DATA_WIDTH * COMPUTE_CHANNEL_NUM
@@ -42,9 +43,10 @@ class UpSampling(upSamplingConfig: UpSamplingConfig) extends Component {
     }
     fsm.last := RegNext(rowCnt.valid)
 
-    val dataTemp = StreamFifo(UInt(upSamplingConfig.STREAM_DATA_WIDTH bits), upSamplingConfig.ROW_MEM_DEPTH).addAttribute("ram_style = \"block\"")
+    val dataTemp = WaStreamFifoPipe(UInt(upSamplingConfig.STREAM_DATA_WIDTH bits), upSamplingConfig.ROW_MEM_DEPTH)
+    dataTemp.fifo.logic.ram.addAttribute("ram_style = \"block\"")
 
-    val channelMem = StreamFifo(UInt(upSamplingConfig.STREAM_DATA_WIDTH bits), upSamplingConfig.channelMemDepth)
+    val channelMem = WaStreamFifoPipe(UInt(upSamplingConfig.STREAM_DATA_WIDTH bits), upSamplingConfig.channelMemDepth)
 
     //    when(fsm.currentState === ShapeStateMachineEnum.COMPUTE) {
 

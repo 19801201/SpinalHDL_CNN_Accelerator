@@ -28,7 +28,7 @@ class Quan(convConfig: ConvConfig) extends Component {
 
     val shift = new Shift(convConfig)
     shift.port.dataIn <> scale.port.dataOut
-    shift.port.quan <> Delay(io.shiftIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 10)
+    shift.port.quan <> Delay(io.shiftIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 10 + 1)
 
     val zero = new Zero(convConfig)
     zero.io.dataIn <> shift.port.dataOut
@@ -67,10 +67,10 @@ class Bias(convConfig: ConvConfig) extends Component {
         switch(port.quan(i)(30 downto 24)) {
             for (j <- 0 until 17) {
                 is(j) {
-                    biasInTemp(i) := S(port.quan(i)(31)).resize(8+j bits).asUInt @@ port.quan(i)(23 downto 0) @@ U(16 - j bits, default -> false)
+                    biasInTemp(i) := S(port.quan(i)(31)).resize(8 + j bits).asUInt @@ port.quan(i)(23 downto 0) @@ U(16 - j bits, default -> false)
                 }
             }
-            default{
+            default {
                 //算法控制，实际这个default是不会出现的
                 biasInTemp(i) := 0
             }
@@ -115,7 +115,7 @@ class Scale(convConfig: ConvConfig) extends Component {
     //        out
     //    }
     (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
-        port.dataOut(i) := (scaleMulOut(i))
+        port.dataOut(i) := RegNext(scaleMulOut(i))
     })
 
 }
