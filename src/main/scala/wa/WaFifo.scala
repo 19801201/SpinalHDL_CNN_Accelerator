@@ -49,8 +49,8 @@ case class WaXpmSyncFifo(config: XPM_FIFO_SYNC_CONFIG) extends Component {
 
     val sCount = in UInt (config.WR_DATA_COUNT_WIDTH bits)
     val mCount = in UInt (config.RD_DATA_COUNT_WIDTH bits)
-    val sReady = out Bool()
-    val mReady = out Bool()
+    val sReady = out (Reg(Bool()))
+    val mReady = out (Reg(Bool()))
     val fifo = FifoSync(config)
     val dataIn = slave Flow(UInt(config.WRITE_DATA_WIDTH bits))
     val rd_en = in Bool()
@@ -58,8 +58,10 @@ case class WaXpmSyncFifo(config: XPM_FIFO_SYNC_CONFIG) extends Component {
     val dout = out UInt (config.READ_DATA_WIDTH bits)
     dout <> fifo.io.dout
     // dataIn.ready <> ((!(fifo.io.full || fifo.io.wr_rst_busy)) && sReady)
-    dataIn.fire <> fifo.io.wr_en
-    dataIn.payload <> fifo.io.din
+//    dataIn.fire <> fifo.io.wr_en
+//    dataIn.payload <> fifo.io.din
+    fifo.io.wr_en := RegNext(dataIn.fire)
+    fifo.io.din := RegNext(dataIn.payload)
 
     when(fifo.io.wr_data_count + sCount < config.FIFO_WRITE_DEPTH - 10) {
         sReady.set()

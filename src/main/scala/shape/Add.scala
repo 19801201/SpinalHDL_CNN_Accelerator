@@ -3,6 +3,7 @@ package shape
 import spinal.core._
 import spinal.lib._
 import wa.WaCounter
+import wa.WaStream.WaStreamFifoPipe
 import wa.xip.math.{AddSub, AddSubConfig, Mul, MulConfig}
 
 case class AddConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: Int, CHANNEL_WIDTH: Int, MEM_DEPTH: Int) {
@@ -90,8 +91,15 @@ class Add(addConfig: AddConfig) extends Component {
     val initCount = WaCounter(fsm.currentState === AddMachineEnum.INIT, 3, 5)
     fsm.initEnd := initCount.valid
 
+//    val mem1 = WaStreamFifoPipe(UInt(addConfig.STREAM_DATA_WIDTH bits), addConfig.MEM_DEPTH)
+//    mem1.fifo.logic.ram.addAttribute("ram_style = \"block\"")
+//    val mem2 = WaStreamFifoPipe(UInt(addConfig.STREAM_DATA_WIDTH bits), addConfig.MEM_DEPTH)
+//    mem2.fifo.logic.ram.addAttribute("ram_style = \"block\"")
+
     val mem1 = StreamFifo(UInt(addConfig.STREAM_DATA_WIDTH bits), addConfig.MEM_DEPTH)
+    mem1.logic.ram.addAttribute("ram_style = \"block\"")
     val mem2 = StreamFifo(UInt(addConfig.STREAM_DATA_WIDTH bits), addConfig.MEM_DEPTH)
+    mem2.logic.ram.addAttribute("ram_style = \"block\"")
 
     val channelTimes = dataPort.channelIn >> log2Up(addConfig.COMPUTE_CHANNEL_NUM)
     val cnt = RegNext(channelTimes * dataPort.colNumIn)

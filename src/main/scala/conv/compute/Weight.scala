@@ -1,5 +1,6 @@
 package conv.compute
 
+import config.Config
 import spinal.core._
 import spinal.lib._
 import wa.xip.memory.xpm.{CLOCK_MODE, MEM_TYPE, sdpram}
@@ -90,39 +91,156 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
     }
     noIoPrefix()
 
-
-    //    val convType = Reg(Bits(2 bits))
-    //    when(io.start) {
-    //        convType := io.convType
+    //    val channelInTimes = io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)
+    //    val channelOutTimes = io.channelOut
+    //
+    //    val fsm = LoadWeightFsm(io.start)
+    //    val init = WaCounter(fsm.currentState === LoadWeightEnum.INIT, log2Up(5), 5)
+    //    fsm.initEnd := init.valid
+    //    val copyWeightCnt = WaCounter(fsm.currentState === LoadWeightEnum.COPY_WEIGHT && io.sData.fire, log2Up(convConfig.WEIGHT_S_DATA_DEPTH), io.weightNum - 1)
+    //    val copyWeightTimes = WaCounter(copyWeightCnt.valid, convConfig.KERNEL_NUM.toBinaryString.length, convConfig.KERNEL_NUM - 1)
+    //    val channelInCnt = WaCounter(fsm.currentState === LoadWeightEnum.COPY_WEIGHT && io.sData.fire, channelInTimes.getWidth, channelInTimes - 1)
+    //    val computeChannelOut = WaCounter(fsm.currentState === LoadWeightEnum.COPY_WEIGHT && io.sData.fire, log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM), convConfig.COMPUTE_CHANNEL_OUT_NUM - 1)
+    //    val times = WaCounter(computeChannelOut.valid, log2Up(8), 8 - 1)
+    //    val channelOutCnt = WaCounter(channelInCnt.valid, channelOutTimes.getWidth, channelOutTimes - 1)
+    //    when(fsm.currentState === LoadWeightEnum.IDLE) {
+    //        copyWeightCnt.clear
+    //        copyWeightTimes.clear
+    //        channelInCnt.clear
+    //        channelOutCnt.clear
+    //    }
+    //
+    //    when(io.convType === CONV_STATE.CONV33) {
+    //        fsm.copyWeightEnd := copyWeightCnt.valid && copyWeightTimes.valid
+    //    } elsewhen (io.convType === CONV_STATE.CONV11_8X) {
+    //        fsm.copyWeightEnd := channelInCnt.valid && channelOutCnt.valid
+    //    } elsewhen (io.convType === CONV_STATE.CONV11) {
+    //        fsm.copyWeightEnd := copyWeightCnt.valid
+    //    } otherwise {
+    //        fsm.copyWeightEnd := False
+    //    }
+    //    when(fsm.currentState === LoadWeightEnum.COPY_WEIGHT || fsm.currentState === LoadWeightEnum.COPY_SHIFT || fsm.currentState === LoadWeightEnum.COPY_BIAS || fsm.currentState === LoadWeightEnum.COPY_SCALE) {
+    //        io.sData.ready := True
+    //    } otherwise {
+    //        io.sData.ready := False
+    //    }
+    //
+    //
+    //    val weav = Vec(Bool(), convConfig.KERNEL_NUM)
+    //    when(io.sData.fire && fsm.currentState === LoadWeightEnum.COPY_WEIGHT) {
+    //        when(io.convType === CONV_STATE.CONV33) {
+    //            switch(copyWeightTimes.count) {
+    //                (0 until convConfig.KERNEL_NUM).foreach(i => {
+    //                    is(i) {
+    //                        (0 until convConfig.KERNEL_NUM).foreach(j => {
+    //                            if (i == j) {
+    //                                weav(j) := True
+    //                            } else {
+    //                                weav(j) := False
+    //                            }
+    //                        }
+    //                        )
+    //                    }
+    //                })
+    //                default {
+    //                    weav.map(_ := False)
+    //                }
+    //
+    //            }
+    //        } elsewhen (io.convType === CONV_STATE.CONV11_8X) {
+    //            switch(times.count) {
+    //                (0 until 8).foreach(i => {
+    //                    is(i) {
+    //                        (0 until 8).foreach(j => {
+    //                            if (i == j) {
+    //                                weav(j) := True
+    //                            } else {
+    //                                weav(j) := False
+    //                            }
+    //                        }
+    //                        )
+    //                    }
+    //                })
+    //                weav(8) := False
+    //                //                default {
+    //                //                    weav.map(_ := False)
+    //                //                }
+    //            }
+    //        } elsewhen (io.convType === CONV_STATE.CONV11) {
+    //            (1 until convConfig.KERNEL_NUM).foreach(i=>{
+    //                weav(i).clear()
+    //            })
+    //            weav(0).set()
+    //        } otherwise {
+    //            weav.map(_ := False)
+    //        }
+    //
+    //
+    //    } otherwise {
+    //        weav.map(_ := False)
+    //    }
+    //    val addr = Vec(Reg(UInt(log2Up(convConfig.WEIGHT_S_DATA_DEPTH) bits)) init 0, 9)
+    //    (0 until 9).foreach(i => {
+    //        when(weav(i)) {
+    //            when(addr(i) === io.weightNum - 1) {
+    //                addr(i) := 0
+    //            } otherwise {
+    //                addr(i) := addr(i) + 1
+    //            }
+    //        }
+    //    })
+    //    val weightRam = Array.tabulate(convConfig.KERNEL_NUM) { i =>
+    //        def gen = {
+    //            val memType = if(Config.useUram) MEM_TYPE.ultra else MEM_TYPE.block
+    //            val latency = if(Config.useUram) 12 else 2
+    //            val temp = new sdpram(convConfig.WEIGHT_S_DATA_WIDTH, convConfig.WEIGHT_S_DATA_DEPTH, convConfig.WEIGHT_M_DATA_WIDTH, convConfig.WEIGHT_M_DATA_DEPTH, memType, latency, CLOCK_MODE.common_clock, this.clockDomain, this.clockDomain)
+    //            //            temp.io.wea <> RegNext(weav(i).asBits)
+    //            temp.io.wea <> weav(i).asBits
+    //            temp.io.ena := True
+    //            temp.io.enb := True
+    //            //            temp.io.addra := copyWeightCnt.count.asBits
+    //            temp.io.addra := addr(i).asBits
+    //            temp.io.addrb := io.weightRead(i).addr.asBits
+    //            temp.io.dina <> io.sData.payload.asBits
+    //            temp.io.doutb.asUInt <> io.weightRead(i).data
+    //            temp
+    //        }
+    //
+    //        gen
     //    }
 
-    //    val copyWeightTi = UInt(convConfig.KERNEL_NUM.toBinaryString.length bits)
-    //    when(convType === CONV_STATE.CONV33){
-    //        copyWeightTi := 9
-    //    } otherwise{
-    //        copyWeightTi := 8
-    //    }
-
-    val channelInTimes = io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)
-    //    val channelOutTimes = io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM)
-    val channelOutTimes = io.channelOut
 
     val fsm = LoadWeightFsm(io.start)
     val init = WaCounter(fsm.currentState === LoadWeightEnum.INIT, log2Up(5), 5)
     fsm.initEnd := init.valid
+
+    val channelInTimes = RegNext(io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM))
+    val channelOutTimes = RegNext(io.channelOut)
+    val copyTimes = Reg(UInt(4 bits))
+    switch(io.convType) {
+        is(CONV_STATE.CONV11) {
+            copyTimes := 1 - 1
+        }
+        is(CONV_STATE.CONV11_8X) {
+            copyTimes := 8 - 1
+        }
+        default {
+            copyTimes := 0
+        }
+    }
     val copyWeightCnt = WaCounter(fsm.currentState === LoadWeightEnum.COPY_WEIGHT && io.sData.fire, log2Up(convConfig.WEIGHT_S_DATA_DEPTH), io.weightNum - 1)
     val copyWeightTimes = WaCounter(copyWeightCnt.valid, convConfig.KERNEL_NUM.toBinaryString.length, convConfig.KERNEL_NUM - 1)
+
     val channelInCnt = WaCounter(fsm.currentState === LoadWeightEnum.COPY_WEIGHT && io.sData.fire, channelInTimes.getWidth, channelInTimes - 1)
     val computeChannelOut = WaCounter(fsm.currentState === LoadWeightEnum.COPY_WEIGHT && io.sData.fire, log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM), convConfig.COMPUTE_CHANNEL_OUT_NUM - 1)
-    val times = WaCounter(computeChannelOut.valid, log2Up(8), 8 - 1)
+    val times = WaCounter(computeChannelOut.valid, 4, copyTimes)
     val channelOutCnt = WaCounter(channelInCnt.valid, channelOutTimes.getWidth, channelOutTimes - 1)
     when(fsm.currentState === LoadWeightEnum.IDLE) {
-        copyWeightCnt.clear
-        copyWeightTimes.clear
         channelInCnt.clear
+        computeChannelOut.clear
+        times.clear
         channelOutCnt.clear
     }
-
     when(io.convType === CONV_STATE.CONV33) {
         fsm.copyWeightEnd := copyWeightCnt.valid && copyWeightTimes.valid
     } elsewhen (io.convType === CONV_STATE.CONV11_8X) {
@@ -132,88 +250,89 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
     } otherwise {
         fsm.copyWeightEnd := False
     }
+
     when(fsm.currentState === LoadWeightEnum.COPY_WEIGHT || fsm.currentState === LoadWeightEnum.COPY_SHIFT || fsm.currentState === LoadWeightEnum.COPY_BIAS || fsm.currentState === LoadWeightEnum.COPY_SCALE) {
         io.sData.ready := True
     } otherwise {
         io.sData.ready := False
     }
-
-
-    val weav = Vec(Bool(), convConfig.KERNEL_NUM)
+    val weav = Vec(Vec(Bool(), convConfig.COMPUTE_CHANNEL_OUT_NUM), convConfig.KERNEL_NUM)
     when(io.sData.fire && fsm.currentState === LoadWeightEnum.COPY_WEIGHT) {
-        when(io.convType === CONV_STATE.CONV33) {
-            switch(copyWeightTimes.count) {
+        switch(io.convType) {
+            is(CONV_STATE.CONV33) {
                 (0 until convConfig.KERNEL_NUM).foreach(i => {
-                    is(i) {
-                        (0 until convConfig.KERNEL_NUM).foreach(j => {
-                            if (i == j) {
-                                weav(j) := True
-                            } else {
-                                weav(j) := False
-                            }
+                    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(j => {
+                        when(copyWeightTimes.count === i && computeChannelOut.count === j) {
+                            weav(i)(j).set()
+                        } otherwise {
+                            weav(i)(j).clear()
                         }
-                        )
+                    })
+                })
+            }
+            is(CONV_STATE.CONV11) {
+                (1 until convConfig.KERNEL_NUM).foreach(i => {
+                    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(j => {
+                        weav(i)(j).clear()
+                    })
+                })
+                (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(j => {
+                    when(computeChannelOut.count === j) {
+                        weav(0)(j).set()
+                    } otherwise {
+                        weav(0)(j).clear()
                     }
                 })
-                default {
-                    weav.map(_ := False)
-                }
-
             }
-        } elsewhen (io.convType === CONV_STATE.CONV11_8X) {
-            switch(times.count) {
+            is(CONV_STATE.CONV11_8X) {
                 (0 until 8).foreach(i => {
-                    is(i) {
-                        (0 until 8).foreach(j => {
-                            if (i == j) {
-                                weav(j) := True
-                            } else {
-                                weav(j) := False
-                            }
+                    (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(j => {
+                        when(times.count === i && computeChannelOut.count === j) {
+                            weav(i)(j).set()
+                        } otherwise {
+                            weav(i)(j).clear()
                         }
-                        )
-                    }
+                    })
                 })
-                weav(8) := False
-                //                default {
-                //                    weav.map(_ := False)
-                //                }
+                weav(8).foreach(w => w.clear())
             }
-        } elsewhen (io.convType === CONV_STATE.CONV11) {
-            (1 until convConfig.KERNEL_NUM).foreach(i=>{
-                weav(i).clear()
-            })
-            weav(0).set()
-        } otherwise {
-            weav.map(_ := False)
+            default {
+                weav.map(w => w.map(_ := False))
+            }
         }
-
-
     } otherwise {
-        weav.map(_ := False)
+        weav.map(w => w.map(_ := False))
     }
-    val addr = Vec(Reg(UInt(log2Up(convConfig.WEIGHT_S_DATA_DEPTH) bits)) init 0, 9)
+    val addr = Vec(Vec(Reg(UInt(log2Up(convConfig.WEIGHT_S_DATA_DEPTH) bits)) init 0, convConfig.COMPUTE_CHANNEL_OUT_NUM), 9)
     (0 until 9).foreach(i => {
-        when(weav(i)) {
-            when(addr(i) === io.weightNum - 1) {
-                addr(i) := 0
-            } otherwise {
-                addr(i) := addr(i) + 1
+        (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(j => {
+            when(weav(i)(j)) {
+                when(addr(i)(j) === io.weightNum - 1) {
+                    addr(i)(j) := 0
+                } otherwise {
+                    addr(i)(j) := addr(i)(j) + 1
+                }
             }
-        }
+        })
     })
-    val weightRam = Array.tabulate(convConfig.KERNEL_NUM) { i =>
+    val weightData = Vec(Vec(UInt(convConfig.WEIGHT_S_DATA_WIDTH bits), convConfig.COMPUTE_CHANNEL_OUT_NUM), convConfig.KERNEL_NUM)
+    (0 until convConfig.KERNEL_NUM).foreach(i => {
+        io.weightRead(i).data := weightData(i).reverse.reduce(_ @@ _)
+    })
+    val weightRam = Array.tabulate(convConfig.KERNEL_NUM, convConfig.COMPUTE_CHANNEL_OUT_NUM) { (i, j) =>
         def gen = {
-            val temp = new sdpram(convConfig.WEIGHT_S_DATA_WIDTH, convConfig.WEIGHT_S_DATA_DEPTH, convConfig.WEIGHT_M_DATA_WIDTH, convConfig.WEIGHT_M_DATA_DEPTH, MEM_TYPE.block, 2, CLOCK_MODE.common_clock, this.clockDomain, this.clockDomain)
+            val memType = if (Config.useUram) MEM_TYPE.ultra else MEM_TYPE.block
+            val latency = if (Config.useUram) 12 else 2
+            val temp = new sdpram(convConfig.WEIGHT_S_DATA_WIDTH, convConfig.WEIGHT_S_DATA_DEPTH / convConfig.COMPUTE_CHANNEL_OUT_NUM, convConfig.WEIGHT_S_DATA_WIDTH, convConfig.WEIGHT_S_DATA_DEPTH / convConfig.COMPUTE_CHANNEL_OUT_NUM, memType, latency, CLOCK_MODE.common_clock, this.clockDomain, this.clockDomain)
             //            temp.io.wea <> RegNext(weav(i).asBits)
-            temp.io.wea <> weav(i).asBits
+            temp.io.wea <> weav(i)(j).asBits
             temp.io.ena := True
             temp.io.enb := True
             //            temp.io.addra := copyWeightCnt.count.asBits
-            temp.io.addra := addr(i).asBits
-            temp.io.addrb := io.weightRead(i).addr.asBits
+            temp.io.addra := addr(i)(j).asBits.resized
+            temp.io.addrb := io.weightRead(i).addr.asBits.resized
             temp.io.dina <> io.sData.payload.asBits
-            temp.io.doutb.asUInt <> io.weightRead(i).data
+            weightData(i)(j) := temp.io.doutb.asUInt
             temp
         }
 

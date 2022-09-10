@@ -2,6 +2,7 @@ package wa
 
 import spinal.core._
 import spinal.lib._
+import wa.xip.math.{AddSub, AddSubConfig}
 
 case class WaMul(A_WIDTH: Int, B_WIDTH: Int, P_WIDTH: Int) extends Component {
     val io = new Bundle {
@@ -90,14 +91,16 @@ class xAdd(
 }
 
 object xAdd {
-    def apply(A_WIDTH: Int, S_WIDTH: Int, ADD_NUM: Int) = new xAddTimes(A_WIDTH, S_WIDTH, ADD_NUM)
-    def apply(A_WIDTH: Int, S_WIDTH: Int) = new xAddChannelTimes(A_WIDTH, S_WIDTH)
+    def apply(A_WIDTH: Int, S_WIDTH: Int, ADD_NUM: Int, genTcl: Boolean) = new xAddTimes(A_WIDTH, S_WIDTH, ADD_NUM, genTcl)
+
+    def apply(A_WIDTH: Int, S_WIDTH: Int, componentName: String, genTcl: Boolean) = new xAddChannelTimes(A_WIDTH, S_WIDTH, componentName, genTcl)
 }
 
 class xAddTimes(
                    A_WIDTH: Int,
                    S_WIDTH: Int,
-                   ADD_NUM: Int
+                   ADD_NUM: Int,
+                   genTcl: Boolean
                ) extends Component {
     val io = new Bundle {
         val A = in Vec(SInt(A_WIDTH bits), ADD_NUM)
@@ -110,25 +113,39 @@ class xAddTimes(
         a1Temp(i) := io.A(i)((A_WIDTH / 2 - 1) downto 0)
         a2Temp(i) := io.A(i)(A_WIDTH - 1 downto A_WIDTH / 2)
     })
+    //    val addTimes0 = AddSub(A_WIDTH / 2, A_WIDTH / 2, A_WIDTH / 2 + 1, AddSubConfig.signed, AddSubConfig.signed, 2 ,AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "addTimes", genTcl)
+    //
+    //    addTimes0.io.A <>
+    //
+    //    val addTimes1 = AddSub(A_WIDTH / 2, A_WIDTH / 2, A_WIDTH / 2 + 1, AddSubConfig.signed, AddSubConfig.signed, 2 ,AddSubConfig.lut, this.clockDomain, AddSubConfig.add, "addTimes", false)
+
     io.S := a2Temp.reduceBalancedTree(_ +^ _, (s, l) => RegNext(s)) @@ a1Temp.reduceBalancedTree(_ +^ _, (s, l) => RegNext(s))
 }
 
 
 class xAddChannelTimes(
                           A_WIDTH: Int,
-                          S_WIDTH: Int
+                          S_WIDTH: Int,
+                          componentName: String,
+                          genTcl: Boolean
                       ) extends Component {
     val io = new Bundle {
         val A = in SInt (A_WIDTH bits)
-        val S = out(Reg(SInt(S_WIDTH bits))) init 0
+        val S = out SInt(S_WIDTH bits)
         val init = in Bool()
     }
     noIoPrefix()
+    val S = SInt(S_WIDTH bits)
+    val temp = Reg(SInt(S_WIDTH bits)) init 0 addAttribute ("use_dsp = \"yes\"")
+    temp := io.A + S
+
     when(io.init) {
-        io.S := io.A.resized
+        S := 0
     } otherwise {
-        io.S := (io.A + io.S).resized
+        S := temp
     }
+    io.S := temp
+
 }
 
 
@@ -149,7 +166,7 @@ class xAddChannelTimes(
 object ttt extends App {
     //    val clk = ClockDomainConfig(resetKind = BOOT)
     //    SpinalConfig(defaultConfigForClockDomains = clk).generateVerilog(xMul(24, 8, 32))
-    val i = 32
-//    SpinalVerilog(xAdd(40, 40 + 2 * (if (i == 1) 0 else log2Up(i)), i))
-    SpinalVerilog(xAdd(20,32))
+    //    val i = 32
+    //    SpinalVerilog(xAdd(40, 40 + 2 * (if (i == 1) 0 else log2Up(i)), i))
+    //    SpinalVerilog(xAdd(20, 32))
 }

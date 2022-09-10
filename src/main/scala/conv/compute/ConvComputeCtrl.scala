@@ -111,20 +111,19 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
 
     val initCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.INIT, 3, 7)
     val temp = UInt(convConfig.CHANNEL_WIDTH bits)
-//    when(io.convType === CONV_STATE.CONV33) {
-//        temp := (io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)).resized
-//    } otherwise {
-//        temp := (io.channelIn >> (log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM) + 3)).resized
-//    }
-    switch(io.convType)
-    {
-        is(CONV_STATE.CONV33,CONV_STATE.CONV11){
+    //    when(io.convType === CONV_STATE.CONV33) {
+    //        temp := (io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)).resized
+    //    } otherwise {
+    //        temp := (io.channelIn >> (log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM) + 3)).resized
+    //    }
+    switch(io.convType) {
+        is(CONV_STATE.CONV33, CONV_STATE.CONV11) {
             temp := (io.channelIn >> log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)).resized
         }
         is(CONV_STATE.CONV11_8X) {
             temp := (io.channelIn >> (log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM) + 3)).resized
         }
-        default{
+        default {
             temp := 0
         }
     }
@@ -181,13 +180,13 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     setClear(channelTimesAdd, convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.count === 0)
     /** **************************************************************************************** */
     //这个值有待测试其他情况
-    val normDelayCount = 3 + (if (!config.Config.dsp2x) 3 else 13) + 4 + log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)
+    val normDelayCount = 3 + (if (config.Config.useUram) 10 else 0) + (if (!config.Config.dsp2x) 3 + 3 else 13) + 4 + log2Up(convConfig.COMPUTE_CHANNEL_IN_NUM)
     val biasDelayCount = normDelayCount - 1
     val scaleDealyCount = 9
     val shiftDealyCount = 1
     val activationDealyCount = 8
-    val mValidDelayCountActivation = normDelayCount + 1 +2 + scaleDealyCount + shiftDealyCount + activationDealyCount + 2
-    val mValidDelayCountNoActivation = normDelayCount + 1 + 2 + scaleDealyCount + shiftDealyCount + 2
+    val mValidDelayCountActivation = normDelayCount + (1) + 2 + scaleDealyCount + shiftDealyCount + activationDealyCount + 2
+    val mValidDelayCountNoActivation = normDelayCount + (1) + 2 + scaleDealyCount + shiftDealyCount + 2
     io.normPreValid := Delay(channelTimesAdd, normDelayCount - 1)
     val normValidTemp = Reg(Bool()) init False
     setClear(normValidTemp, convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.valid)
@@ -199,7 +198,7 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     io.mCount := io.sCount
     val biasAddrCnt = WaCounter(normValidTempQ(biasDelayCount), log2Up(convConfig.QUAN_M_DATA_DEPTH), channelOutTimes - 1)
     io.biasReadAddr := biasAddrCnt.count
-    val quanDelayTemp = History(io.biasReadAddr, shiftDealyCount + scaleDealyCount + 1)
+    //    val quanDelayTemp = History(io.biasReadAddr, shiftDealyCount + scaleDealyCount + 1)
     //    io.scaleReadAddr := quanDelayTemp(scaleDealyCount)
     //    io.shiftReadAddr := quanDelayTemp(shiftDealyCount + scaleDealyCount)
     //    io.scaleReadAddr := quanDelayTemp(1)

@@ -21,4 +21,6 @@ object Config {
     val enFocus = false
 
     val useXilinxDma = true
+
+    val useUram = true
 }

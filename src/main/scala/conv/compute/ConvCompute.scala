@@ -41,14 +41,14 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val amendReg = in Bits (32 bits)
     }
     noIoPrefix()
-    ClockDomain(clock=this.clockDomain.clock,reset=this.clockDomain.reset,softReset = io.softReset){
+    ClockDomain(clock = this.clockDomain.clock, reset = this.clockDomain.reset, softReset = io.softReset) {
         val convType = Reg(Bits(2 bits))
         when(io.startPa) {
             convType := io.convType
         }
 
         val channelIncr = new ChannelIncr(convConfig)
-        if(enFocus){
+        if (enFocus) {
             val focus = new Focus(convConfig)
             focus.io.sData <> io.sFeatureFirstLayerData
             focus.io.mData <> channelIncr.io.sData
@@ -148,10 +148,14 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
                 //            featureMemOutData(i) := mem.io.doutb.asUInt
                 //            mem.io.addrb <> computeCtrl.io.featureMemReadAddr.asBits
                 //            mem.io.enb <> True
-                val mem = new Mem(UInt(convConfig.FEATURE_S_DATA_WIDTH bits), wordCount = convConfig.FEATURE_MEM_DEPTH)
+                val mem = new Mem(UInt(convConfig.FEATURE_S_DATA_WIDTH bits), wordCount = convConfig.FEATURE_MEM_DEPTH).addAttribute("ram_style = \"block\"")
                 mem.write(computeCtrl.io.featureMemWriteAddr, featureFifo(i).dout, featureFifo(i).rd_en)
-//                featureMemOutData(i) := mem.readAsync(computeCtrl.io.featureMemReadAddr)
-                featureMemOutData(i) := mem.readSync(computeCtrl.io.featureMemReadAddr)
+                //                featureMemOutData(i) := mem.readAsync(computeCtrl.io.featureMemReadAddr)
+                if (useUram) {
+                    featureMemOutData(i) := Delay(mem.readSync(computeCtrl.io.featureMemReadAddr), 10)
+                } else {
+                    featureMemOutData(i) := mem.readSync(computeCtrl.io.featureMemReadAddr)
+                }
                 mem
             }
 
@@ -194,7 +198,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val addKernelData = Vec(Vec(SInt(convConfig.addKernelWidth bits), convConfig.COMPUTE_CHANNEL_IN_NUM), convConfig.COMPUTE_CHANNEL_OUT_NUM / 2)
         val addKernel = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM / 2, convConfig.COMPUTE_CHANNEL_IN_NUM) { (i, j) =>
             def gen = {
-                val add = xAdd(convConfig.mulWeightWidth, convConfig.addKernelWidth, convConfig.KERNEL_NUM).setName("addKernel")
+                val add = xAdd(convConfig.mulWeightWidth, convConfig.addKernelWidth, convConfig.KERNEL_NUM, i==0 && j==0).setName("addKernel")
                 (0 until convConfig.KERNEL_NUM).foreach(k => {
                     add.io.A(k) <> mulFeatureWeightData(k)(i)(j).asSInt
                 }
@@ -209,7 +213,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val addChannelData = Vec(SInt(convConfig.addChannelInWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM / 2)
         val addChannelIn = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM / 2) { i =>
             def gen = {
-                val add = xAdd(convConfig.addKernelWidth, convConfig.addChannelInWidth, convConfig.COMPUTE_CHANNEL_IN_NUM)
+                val add = xAdd(convConfig.addKernelWidth, convConfig.addChannelInWidth, convConfig.COMPUTE_CHANNEL_IN_NUM, i==0)
                 (0 until convConfig.COMPUTE_CHANNEL_IN_NUM).foreach(j => {
                     add.io.A(j) <> addKernelData(i)(j)
                 })
@@ -222,7 +226,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val addChannelTimesData = Vec(SInt(convConfig.addChannelTimesWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM)
         val addChannelTimes = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM) { i =>
             def gen = {
-                val add = xAdd(convConfig.addChannelInWidth / 2, convConfig.addChannelTimesWidth)
+                val add = xAdd(convConfig.addChannelInWidth / 2, convConfig.addChannelTimesWidth, "addChannelTimes", i == 0)
                 add.io.A <> addChannelData(i / 2).subdivideIn(2 slices)(i % 2)
                 add.io.S <> addChannelTimesData(i)
                 add.io.init <> computeCtrl.io.normPreValid
@@ -262,8 +266,6 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         stride.io.start <> io.startCu
         stride.io.last <> io.last
     }
-
-
 
 
 }
