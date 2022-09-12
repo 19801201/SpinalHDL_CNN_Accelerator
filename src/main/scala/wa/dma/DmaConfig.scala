@@ -10,10 +10,10 @@ case class DmaCmd() extends Bundle {
     val introut = out Bool()
 }
 
-case class DmaConfig(addrWidth: Int, dataWidth: Int, burstSize: Int) {
-    require((dataWidth & (dataWidth - 1)) == 0, "dataWidth需要是2的幂次")
+case class DmaConfig(addrWidth: Int, axiDataWidth: Int, streamDataWidth:Int, burstSize: Int) {
+    require((axiDataWidth & (axiDataWidth - 1)) == 0, "axiDataWidth需要是2的幂次")
     require((burstSize & (burstSize - 1)) == 0, "burstSize需要是2的幂次")
-    val byteConut = dataWidth / 8
-    val awSize = (scala.math.log(dataWidth / 8) / scala.math.log(2)).toInt
+    val byteConut = axiDataWidth / 8
+    val awSize = (scala.math.log(axiDataWidth / 8) / scala.math.log(2)).toInt
 
 }

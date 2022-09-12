@@ -22,67 +22,67 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
     val shape = new Shape(shapeConfig)
     val register = new instruction.Instruction
     if (!Config.useXilinxDma) {
-        val io = new Bundle {
-            val convSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), convConfig.FEATURE_S_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
-            val convFirstLayerSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), firstLayerWidth, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
-            val convMData = master(Axi4WriteOnly(Axi4Config(log2Up(DDRSize), convConfig.FEATURE_M_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
-            val shapeSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
-            val shapeSData1 = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
-            val shapeMData = master(Axi4WriteOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
-
-        }
-        noIoPrefix()
-        Axi4SpecRenamer(io.convSData)
-        Axi4SpecRenamer(io.convFirstLayerSData)
-        Axi4SpecRenamer(io.convMData)
-        Axi4SpecRenamer(io.shapeSData)
-        Axi4SpecRenamer(io.shapeSData1)
-        Axi4SpecRenamer(io.shapeMData)
-
-        val convDmaWrite = new DmaWrite(DmaConfig(log2Up(DDRSize), convConfig.FEATURE_S_DATA_WIDTH, burstSize))
-        val convDmaRead = new DmaRead(DmaConfig(log2Up(DDRSize), convConfig.FEATURE_M_DATA_WIDTH, burstSize))
-        val convFirstLayerDmaRead = new DmaRead(DmaConfig(log2Up(DDRSize), firstLayerWidth, burstSize))
-        convDmaWrite.io.M_AXI_S2MM <> io.convMData
-        convDmaRead.io.M_AXI_MM2S <> io.convSData
-        convFirstLayerDmaRead.io.M_AXI_MM2S <> io.convFirstLayerSData
-
-        val shapeDmaWrite = new DmaWrite(DmaConfig(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, burstSize))
-        val shapeDmaRead = new DmaRead(DmaConfig(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, burstSize))
-        val shapeDmaRead1 = new DmaRead(DmaConfig(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, burstSize))
-        shapeDmaWrite.io.M_AXI_S2MM <> io.shapeMData
-        shapeDmaRead.io.M_AXI_MM2S <> io.shapeSData
-        shapeDmaRead1.io.M_AXI_MM2S <> io.shapeSData1
-
-        conv.io.sData <> convDmaRead.io.M_AXIS_MM2S
-        StreamWidthAdapter(convFirstLayerDmaRead.io.M_AXIS_MM2S, conv.io.sFeatureFirstLayerData)
-        convDmaWrite.io.M_AXIS_S2MM <> conv.io.mData
-        conv.io.dmaWriteValid <> convDmaWrite.io.cmd.valid
-        conv.io.dmaReadValid <> convDmaRead.io.cmd.valid
-        conv.io.dmaFirstLayerReadValid <> convFirstLayerDmaRead.io.cmd.valid
-        conv.io.introut <> convDmaWrite.io.cmd.introut
-        shape.io.sData(0) <> shapeDmaRead.io.M_AXIS_MM2S
-        shape.io.sData(1) <> shapeDmaRead1.io.M_AXIS_MM2S
-        shape.io.mData <> shapeDmaWrite.io.M_AXIS_S2MM
-        shape.io.dmaReadValid(0) <> shapeDmaRead.io.cmd.valid
-        shape.io.dmaReadValid(1) <> shapeDmaRead1.io.cmd.valid
-        shape.io.dmaWriteValid <> shapeDmaWrite.io.cmd.valid
-        shape.io.introut <> shapeDmaWrite.io.cmd.introut
-        register.dma(0)(0)(0).asUInt <> convDmaWrite.io.cmd.addr
-        register.dma(0)(1)(0).asUInt <> convDmaWrite.io.cmd.len
-        register.dma(0)(0)(1).asUInt <> convDmaRead.io.cmd.addr
-        register.dma(0)(1)(1).asUInt <> convDmaRead.io.cmd.len
-        register.dma(0)(0)(1).asUInt <> convFirstLayerDmaRead.io.cmd.addr
-        if (Config.imageType.dataType == Config.imageType.gray) {
-            convFirstLayerDmaRead.io.cmd.len := (register.dma(0)(1)(1).asUInt >> 2).resize(32 bits)
-        } else {
-            register.dma(0)(1)(1).asUInt <> convFirstLayerDmaRead.io.cmd.len
-        }
-        register.dma(1)(0)(0).asUInt <> shapeDmaWrite.io.cmd.addr
-        register.dma(1)(1)(0).asUInt <> shapeDmaWrite.io.cmd.len
-        register.dma(1)(0)(1).asUInt <> shapeDmaRead.io.cmd.addr
-        register.dma(1)(1)(1).asUInt <> shapeDmaRead.io.cmd.len
-        register.dma(1)(0)(2).asUInt <> shapeDmaRead1.io.cmd.addr
-        register.dma(1)(1)(2).asUInt <> shapeDmaRead1.io.cmd.len
+//        val io = new Bundle {
+//            val convSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), convConfig.FEATURE_S_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+//            val convFirstLayerSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), firstLayerWidth, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+//            val convMData = master(Axi4WriteOnly(Axi4Config(log2Up(DDRSize), convConfig.FEATURE_M_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+//            val shapeSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+//            val shapeSData1 = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+//            val shapeMData = master(Axi4WriteOnly(Axi4Config(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
+//
+//        }
+//        noIoPrefix()
+//        Axi4SpecRenamer(io.convSData)
+//        Axi4SpecRenamer(io.convFirstLayerSData)
+//        Axi4SpecRenamer(io.convMData)
+//        Axi4SpecRenamer(io.shapeSData)
+//        Axi4SpecRenamer(io.shapeSData1)
+//        Axi4SpecRenamer(io.shapeMData)
+//
+//        val convDmaWrite = new DmaWrite(DmaConfig(log2Up(DDRSize), convConfig.FEATURE_S_DATA_WIDTH, 8, burstSize))
+//        val convDmaRead = new DmaRead(DmaConfig(log2Up(DDRSize), convConfig.FEATURE_M_DATA_WIDTH, 8, burstSize))
+//        val convFirstLayerDmaRead = new DmaRead(DmaConfig(log2Up(DDRSize), firstLayerWidth, 8, burstSize))
+//        convDmaWrite.io.M_AXI_S2MM <> io.convMData
+//        convDmaRead.io.M_AXI_MM2S <> io.convSData
+//        convFirstLayerDmaRead.io.M_AXI_MM2S <> io.convFirstLayerSData
+//
+//        val shapeDmaWrite = new DmaWrite(DmaConfig(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, 8, burstSize))
+//        val shapeDmaRead = new DmaRead(DmaConfig(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, 8, burstSize))
+//        val shapeDmaRead1 = new DmaRead(DmaConfig(log2Up(DDRSize), shapeConfig.STREAM_DATA_WIDTH, 8, burstSize))
+//        shapeDmaWrite.io.M_AXI_S2MM <> io.shapeMData
+//        shapeDmaRead.io.M_AXI_MM2S <> io.shapeSData
+//        shapeDmaRead1.io.M_AXI_MM2S <> io.shapeSData1
+//
+//        conv.io.sData <> convDmaRead.io.M_AXIS_MM2S
+//        StreamWidthAdapter(convFirstLayerDmaRead.io.M_AXIS_MM2S, conv.io.sFeatureFirstLayerData)
+//        convDmaWrite.io.M_AXIS_S2MM <> conv.io.mData
+//        conv.io.dmaWriteValid <> convDmaWrite.io.cmd.valid
+//        conv.io.dmaReadValid <> convDmaRead.io.cmd.valid
+//        conv.io.dmaFirstLayerReadValid <> convFirstLayerDmaRead.io.cmd.valid
+//        conv.io.introut <> convDmaWrite.io.cmd.introut
+//        shape.io.sData(0) <> shapeDmaRead.io.M_AXIS_MM2S
+//        shape.io.sData(1) <> shapeDmaRead1.io.M_AXIS_MM2S
+//        shape.io.mData <> shapeDmaWrite.io.M_AXIS_S2MM
+//        shape.io.dmaReadValid(0) <> shapeDmaRead.io.cmd.valid
+//        shape.io.dmaReadValid(1) <> shapeDmaRead1.io.cmd.valid
+//        shape.io.dmaWriteValid <> shapeDmaWrite.io.cmd.valid
+//        shape.io.introut <> shapeDmaWrite.io.cmd.introut
+//        register.dma(0)(0)(0).asUInt <> convDmaWrite.io.cmd.addr
+//        register.dma(0)(1)(0).asUInt <> convDmaWrite.io.cmd.len
+//        register.dma(0)(0)(1).asUInt <> convDmaRead.io.cmd.addr
+//        register.dma(0)(1)(1).asUInt <> convDmaRead.io.cmd.len
+//        register.dma(0)(0)(1).asUInt <> convFirstLayerDmaRead.io.cmd.addr
+//        if (Config.imageType.dataType == Config.imageType.gray) {
+//            convFirstLayerDmaRead.io.cmd.len := (register.dma(0)(1)(1).asUInt >> 2).resize(32 bits)
+//        } else {
+//            register.dma(0)(1)(1).asUInt <> convFirstLayerDmaRead.io.cmd.len
+//        }
+//        register.dma(1)(0)(0).asUInt <> shapeDmaWrite.io.cmd.addr
+//        register.dma(1)(1)(0).asUInt <> shapeDmaWrite.io.cmd.len
+//        register.dma(1)(0)(1).asUInt <> shapeDmaRead.io.cmd.addr
+//        register.dma(1)(1)(1).asUInt <> shapeDmaRead.io.cmd.len
+//        register.dma(1)(0)(2).asUInt <> shapeDmaRead1.io.cmd.addr
+//        register.dma(1)(1)(2).asUInt <> shapeDmaRead1.io.cmd.len
     } else {
 
         case class Cmd() extends Bundle {
