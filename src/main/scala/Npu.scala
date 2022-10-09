@@ -120,11 +120,8 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
         io.convSDataCmd.valid := conv.io.dmaReadValid
         io.convFirstLayerSDataCmd.valid := conv.io.dmaFirstLayerReadValid
 
-        if (Config.imageType.dataType == Config.imageType.gray) {
-            io.convFirstLayerSDataCmd.cmd := register.dma(0)(0)(1) ## (register.dma(0)(1)(1).asUInt >> 2).resize(32 bits)
-        } else {
-            io.convFirstLayerSDataCmd.cmd := register.dma(0)(0)(1) ## register.dma(0)(1)(1)
-        }
+        io.convFirstLayerSDataCmd.cmd := register.dma(0)(0)(1) ## register.dma(0)(1)(1)
+        
         io.shapeMDataCmd.valid := shape.io.dmaWriteValid
         io.shapeMDataCmd.cmd := register.dma(1)(0)(0) ## register.dma(1)(1)(0)
         io.shapeSDataCmd.valid := shape.io.dmaReadValid(0)
