@@ -8,7 +8,7 @@
 
 ## Implementing accelerator supporting various neural networks in SpinalHDL
 
-- This repository is implementing common operators in CNN in SpinalHDL 1.7.0.It can be guided by compiler to generate accelerators for various neural networks.
+- This repository is implementing common operators in CNN in SpinalHDL 1.7.3.It can be guided by compiler to generate accelerators for various neural networks.
 - This repository aims to implement a general accelerator at the SpinalHDL level and a special accelerator at the Verilog level.
 - This repository implements an Npu module, which can be put into the project,as shown in the figure.
 
