@@ -10,21 +10,35 @@ import spinal.lib.bus.misc.SizeMapping
 import spinal.lib.bus.regif._
 import spinal.lib.bus.regif.AccessType._
 
-class Instruction extends Component {
+class Instruction(addr: Int, instructionType: List[String]) extends Component {
     val io = new Bundle {
         val regSData = slave(AxiLite4(log2Up(registerAddrSize), 32))
-        val convInstruction = out Vec(Reg(Bits(32 bits)) init 0, CONV_STATE.Reg.length)
+        val convInstruction = out Vec(Vec(Reg(Bits(32 bits)) init 0, CONV_STATE.Reg.length), ConvNum)
         val shapeInstruction = out Vec(Reg(Bits(32 bits)) init 0, shape.Instruction.Reg.length)
     }
     noIoPrefix()
     AxiLite4SpecRenamer(io.regSData)
-    val bus = BusInterface(io.regSData, sizeMap = SizeMapping(0, registerAddrSize))
-    val convStateReg = bus.newReg(doc = "卷积状态指令")
-    val convControlReg = bus.newReg(doc = "卷积控制指令")
-    val convState = in Bits (4 bits)
-    val t1 = convStateReg.field(Bits(4 bits), RO, doc = "卷积的状态")
-    t1 := convState
-    val convControl = convControlReg.field(Bits(4 bits), WO, doc = "卷积的控制指令").asOutput()
+    val bus = BusInterface(io.regSData, sizeMap = SizeMapping(addr, registerAddrSize))
+
+    class GenConvInst extends Area {
+        val convStateReg = bus.newReg(doc = "卷积状态指令")
+        val convControlReg = bus.newReg(doc = "卷积控制指令")
+        val convState = in Bits (4 bits)
+        val t1 = convStateReg.field(Bits(4 bits), RO, doc = "卷积的状态")
+        t1 := convState
+        val convControl = convControlReg.field(Bits(4 bits), WO, doc = "卷积的控制指令").asOutput()
+    }
+
+    val convInst = Array.tabulate(ConvNum) { i => {
+        def gen = {
+            val c = new GenConvInst
+            c
+        }
+
+        gen
+    }
+    }
+
 
     val shapeStateReg = bus.newReg(doc = "shape状态指令")
     val shapeControlReg = bus.newReg(doc = "shape控制指令")
@@ -33,31 +47,34 @@ class Instruction extends Component {
     t2 := shapeState
     val shapeControl = shapeControlReg.field(Bits(4 bits), WO, doc = "shape的控制指令").asOutput()
 
-    //    val ins = Array.tabulate(6) { i => {
-    //        def gen = {
-    //            val reg = bus.newReg(doc = "Reg" + i)
-    //            val instruction = reg.field(32 bits, WO, doc = "reg" + i).asOutput().setName("instruction" + i)
-    //            instruction
-    //        }
-    //
-    //        gen
-    //    }
-    //    }
-
     var index = 0
-    val convInstruction = CONV_STATE.Reg.foreach(in => {
-        val reg = bus.newReg(doc = "Conv" + in._1)
-        var h = 0
-        var l = 0
-        for (i <- 0 until in._2.productArity if i % 2 == 0) {
-            val w = in._2.productElement(i + 1).toString.toInt
-            l = h
-            h = h + w
-            val regFiled = reg.field(Bits(w bits), WO, doc = in._2.productElement(i).toString)
-            io.convInstruction(index)((h - 1) downto l) := regFiled
+
+    class GenConvPara(convInt: Int) extends Area {
+        index = 0
+        val convInstruction = CONV_STATE.Reg.foreach(in => {
+            val reg = bus.newReg(doc = "Conv" + in._1)
+            var h = 0
+            var l = 0
+            for (i <- 0 until in._2.productArity if i % 2 == 0) {
+                val w = in._2.productElement(i + 1).toString.toInt
+                l = h
+                h = h + w
+                val regFiled = reg.field(Bits(w bits), WO, doc = in._2.productElement(i).toString)
+                io.convInstruction(convInt)(index)((h - 1) downto l) := regFiled
+            }
+            index = index + 1
+        })
+    }
+
+    val convParaInst = Array.tabulate(ConvNum) { i => {
+        def gen = {
+            val c = new GenConvPara(i).convInstruction
+            c
         }
-        index = index + 1
-    })
+
+        gen
+    }
+    }
     index = 0
     val shapeInstruction = shape.Instruction.Reg.foreach(in => {
         val reg = bus.newReg(doc = "Shape" + in._1)
@@ -72,32 +89,28 @@ class Instruction extends Component {
         }
         index = index + 1
     })
-    //    (0 until 6).foreach(i => {
-    //        val reg = bus.newReg(doc = "Reg" + i)
-    //        val instruction = reg.field(32 bits, WO, doc = "reg" + i).asOutput().setName("instruction" + i)
-    //    })
 
-    val s = List("conv", "shape")
-    val dma = Array.tabulate(2) { i => {
+    val s = instructionType
+    val dma = Array.tabulate(s.length) { i => {
         def gen = {
 
             val writeAddrReg = bus.newReg(doc = "dma写地址")
-            val writeAddr = writeAddrReg.field(32 bits, WO, doc = s(i) + " dma写地址").setName(s(i) + "writeAddr").asOutput()
+            val writeAddr = writeAddrReg.field(32 bits, WO, doc = s(i) + i.toString + " dma写地址").setName(s(i) + i.toString + "writeAddr").asOutput()
             val writeLenReg = bus.newReg(doc = "dma写长度,以字节为单位")
-            val writeLen = writeLenReg.field(32 bits, WO, doc = s(i) + " dma写长度").setName(s(i) + "writeLen").asOutput()
+            val writeLen = writeLenReg.field(32 bits, WO, doc = s(i) + i.toString + " dma写长度").setName(s(i) + i.toString + "writeLen").asOutput()
             var addr = List(writeAddr)
             var len = List(writeLen)
             val readAddrReg = bus.newReg(doc = "dma读地址")
-            val readAddr = readAddrReg.field(32 bits, WO, doc = s(i) + " dma读地址").setName(s(i) + "readAddr").asOutput()
+            val readAddr = readAddrReg.field(32 bits, WO, doc = s(i) + i.toString + " dma读地址").setName(s(i) + i.toString + "readAddr").asOutput()
             val readLenReg = bus.newReg(doc = "dma读长度，以字节为单位")
-            val readLen = readLenReg.field(32 bits, WO, doc = s(i) + " dma读长度").setName(s(i) + "readLen").asOutput()
+            val readLen = readLenReg.field(32 bits, WO, doc = s(i) + i.toString + " dma读长度").setName(s(i) + i.toString + "readLen").asOutput()
             addr = addr.::(readAddr)
             len = len.::(readLen)
-            if (i == 1) {
+            if (i == s.length - 1) {
                 val readAddrReg = bus.newReg(doc = "dma读地址")
-                val readAddr = readAddrReg.field(32 bits, WO, doc = s(i) + " dma读地址1").setName(s(i) + "readAddr1").asOutput()
+                val readAddr = readAddrReg.field(32 bits, WO, doc = s(i) + i.toString + " dma读地址1").setName(s(i) + i.toString + "readAddr1").asOutput()
                 val readLenReg = bus.newReg(doc = "dma读长度，以字节为单位")
-                val readLen = readLenReg.field(32 bits, WO, doc = s(i) + " dma读长度").setName(s(i) + "readLen1").asOutput()
+                val readLen = readLenReg.field(32 bits, WO, doc = s(i) + i.toString + " dma读长度").setName(s(i) + i.toString + "readLen1").asOutput()
                 addr = addr.::(readAddr)
                 len = len.::(readLen)
             }
@@ -109,25 +122,13 @@ class Instruction extends Component {
         gen
     }
     }
-    //    val readAddrReg = bus.newReg(doc = "dma读地址")
-    //    val readAddr = readAddrReg.field(32 bits, WO, doc =  " dma读地址").setName("convFirstLayerReadAddr").asOutput()
-    //    val readLenReg = bus.newReg(doc = "dma读长度，不以字节为单位，实际长度")
-    //    val readLen = readLenReg.field(32 bits, WO, doc =  " dma读长度").setName("convFirstLayerReadLen").asOutput()
-    //    (0 until 2).foreach(i => {
-    //        val writeAddrReg = bus.newReg(doc = "dma写地址")
-    //        val writeAddr = writeAddrReg.field(32 bits, WO, doc = s(i) + " dma写地址").setName(s(i) + "writeAddr").asOutput()
-    //        if(i==1){
-    //            val writeAddrReg = bus.newReg(doc = "dma写地址")
-    //            val writeAddr = writeAddrReg.field(32 bits, WO, doc = s(i) + " dma写地址1").setName(s(i) + "writeAddr1").asOutput()
-    //        }
-    //        val readAddrReg = bus.newReg(doc = "dma读地址")
-    //        val readAddr = readAddrReg.field(32 bits, WO, doc = s(i) + " dma读地址").setName(s(i) + "readAddr").asOutput()
-    //    })
 
-    bus.accept(HtmlGenerator("Reg.html", "Npu"))
+    val convCascade_ = bus.newReg(doc = "conv级联")
+    val convCascade = convCascade_.field(log2Up(ConvNum) + 1 bits, WO).asOutput()
+    bus.accept(HtmlGenerator("Reg", "Npu"))
 
 }
 
-object Instruction extends App {
-    SpinalVerilog(new Instruction)
-}
+//object Instruction extends App {
+//    SpinalVerilog(new Instruction)
+//}

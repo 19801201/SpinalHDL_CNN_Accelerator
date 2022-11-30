@@ -23,4 +23,10 @@ object Config {
     val useXilinxDma = true
 
     val useUram = true
+
+    val Conv = "conv"
+    val Shape = "shape"
+    val ConvNum = 1
+    val instructionAddr = 0
+    val instructionType = List.fill(ConvNum)(Conv).::(Shape).reverse
 }

@@ -1,3 +1,4 @@
+import config.Config
 import spinal.core._
 import spinal.core.sim._
 import spinal.lib._
@@ -5,7 +6,7 @@ import spinal.lib.bus.amba4.axilite.sim._
 import spinal.lib.bus.amba4.axilite._
 import instruction.Instruction
 object TbInstruction extends App{
-    SimConfig.withWave.compile(new Instruction).doSim{
+    SimConfig.withWave.compile(new Instruction(Config.instructionAddr, Config.instructionType)).doSim{
         dut=>
             dut.clockDomain.forkStimulus(5)
             dut.clockDomain.waitSampling(10)

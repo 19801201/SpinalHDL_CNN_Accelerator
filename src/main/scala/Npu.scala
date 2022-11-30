@@ -18,9 +18,9 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
     val regSData = slave(AxiLite4(log2Up(registerAddrSize), 32))
     AxiLite4SpecRenamer(regSData)
 
-    val conv = new Conv(convConfig)
+    val conv = List.fill(Config.ConvNum)(new Conv(convConfig))
     val shape = new Shape(shapeConfig)
-    val register = new instruction.Instruction
+    val register = new instruction.Instruction(Config.instructionAddr, Config.instructionType)
     if (!Config.useXilinxDma) {
 //        val io = new Bundle {
 //            val convSData = master(Axi4ReadOnly(Axi4Config(log2Up(DDRSize), convConfig.FEATURE_S_DATA_WIDTH, useQos = false, useId = false, useRegion = false, useLock = false, wUserWidth = 0, awUserWidth = 0, bUserWidth = 0)))
@@ -90,38 +90,57 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
             val valid = out Bool()
             val introut = in Bool()
         }
+        class genConvIo(i: Int) extends Area {
+            val convSData = slave Stream UInt(convConfig.FEATURE_S_DATA_WIDTH bits) setName ("convSData" + i.toString)
+            val convFirstLayerSData = slave Stream UInt(firstLayerWidth bits) setName ("convFirstLayerSData" + i.toString)
+            val convMData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits) setName ("convMData" + i.toString)
+            val convSDataCmd = Cmd() setName ("convSDataCmd" + i.toString)
+            val convFirstLayerSDataCmd = Cmd() setName ("convFirstLayerSDataCmd" + i.toString)
+            val convMDataCmd = Cmd() setName ("convMDataCmd" + i.toString)
+            val convMLast = out Bool() setName ("convMLast" + i.toString)
+
+        }
+
 
         val io = new Bundle {
-            val convSData = slave Stream UInt(convConfig.FEATURE_S_DATA_WIDTH bits) setName ("convSData")
-            val convFirstLayerSData = slave Stream UInt(firstLayerWidth bits) setName ("convFirstLayerSData")
-            val convMData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits) setName ("convMData")
+
+            val convIo = Array.tabulate(ConvNum)(i => {
+                val gen = new genConvIo(i)
+                gen
+            })
+
             val shapeSData = slave Stream UInt(shapeConfig.STREAM_DATA_WIDTH bits) setName ("shapeSData")
             val shapeSData1 = slave Stream UInt(shapeConfig.STREAM_DATA_WIDTH bits) setName ("shapeSData1")
             val shapeMData = master Stream UInt(shapeConfig.STREAM_DATA_WIDTH bits) setName ("shapeMData")
 
-            val convSDataCmd = Cmd() setName ("convSDataCmd")
-            val convFirstLayerSDataCmd = Cmd() setName ("convFirstLayerSDataCmd")
-            val convMDataCmd = Cmd() setName ("convMDataCmd")
+
             val shapeSDataCmd = Cmd() setName ("shapeSDataCmd")
             val shapeSData1Cmd = Cmd() setName ("shapeSData1Cmd")
             val shapeMDataCmd = Cmd() setName ("shapeMDataCmd")
-            val convMLast = out Bool() setName ("convMLast")
             val shapeMLast = out Bool() setName ("shapeMLast")
+
 
         }
         noIoPrefix()
 
-        conv.io.last <> io.convMLast
+        (0 until ConvNum).foreach(i => {
+            conv(i).io.last <> io.convIo(i).convMLast
+            io.convIo(i).convMDataCmd.valid := conv(i).io.dmaWriteValid
+            io.convIo(i).convSDataCmd.valid := conv(i).io.dmaReadValid
+            io.convIo(i).convFirstLayerSDataCmd.valid := conv(i).io.dmaFirstLayerReadValid
+            io.convIo(i).convSData <> conv(i).io.sData
+            io.convIo(i).convMData <> conv(i).io.mData
+            io.convIo(i).convFirstLayerSData <> conv(i).io.sFeatureFirstLayerData
+            conv(i).io.introut := io.convIo(i).convMDataCmd.introut
+
+            io.convIo(i).convMDataCmd.cmd := register.dma(i)(0)(0) ## register.dma(i)(1)(0)
+            io.convIo(i).convSDataCmd.cmd := register.dma(i)(0)(1) ## register.dma(0)(1)(1)
+            io.convIo(i).convFirstLayerSDataCmd.cmd := register.dma(i)(0)(1) ## register.dma(i)(1)(1)
+        })
+
         shape.io.last <> io.shapeMLast
 
-        io.convMDataCmd.cmd := register.dma(0)(0)(0) ## register.dma(0)(1)(0)
-        io.convMDataCmd.valid := conv.io.dmaWriteValid
-        io.convSDataCmd.cmd := register.dma(0)(0)(1) ## register.dma(0)(1)(1)
-        io.convSDataCmd.valid := conv.io.dmaReadValid
-        io.convFirstLayerSDataCmd.valid := conv.io.dmaFirstLayerReadValid
 
-        io.convFirstLayerSDataCmd.cmd := register.dma(0)(0)(1) ## register.dma(0)(1)(1)
-        
         io.shapeMDataCmd.valid := shape.io.dmaWriteValid
         io.shapeMDataCmd.cmd := register.dma(1)(0)(0) ## register.dma(1)(1)(0)
         io.shapeSDataCmd.valid := shape.io.dmaReadValid(0)
@@ -129,15 +148,12 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
         io.shapeSData1Cmd.valid := shape.io.dmaReadValid(1)
         io.shapeSData1Cmd.cmd := register.dma(1)(0)(2) ## register.dma(1)(1)(2)
 
-        io.convSData <> conv.io.sData
-        io.convMData <> conv.io.mData
-        io.convFirstLayerSData <> conv.io.sFeatureFirstLayerData
 
         io.shapeSData <> shape.io.sData(0)
         io.shapeSData1 <> shape.io.sData(1)
         io.shapeMData <> shape.io.mData
 
-        conv.io.introut := io.convMDataCmd.introut
+
         shape.io.introut := io.shapeMDataCmd.introut
 
     }
@@ -150,10 +166,12 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
     //    (0 until 6).foreach(i => {
     //        register.ins(i) <> shape.io.instruction(i)
     //    })
-    register.io.convInstruction <> conv.io.instruction
+    (0 until ConvNum).foreach(i => {
+        register.io.convInstruction(i) <> conv(i).io.instruction
+        register.convInst(i).convState <> conv(i).io.state
+        register.convInst(i).convControl <> conv(i).io.control
+    })
     register.io.shapeInstruction <> shape.io.instruction
-    register.convState <> conv.io.state
-    register.convControl <> conv.io.control
     register.shapeState <> shape.io.state
     register.shapeControl <> shape.io.control
 
