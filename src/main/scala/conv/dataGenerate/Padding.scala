@@ -6,6 +6,7 @@ import spinal.lib._
 import wa.{WaCounter, WaStreamFifo}
 import spinal.core.sim._
 import spinal.lib.fsm._
+import wa.WaStream.WaStreamFifoPipe
 
 import scala.io.Source
 
@@ -80,6 +81,34 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
         val DOWN = new State()
         val LAST = new State()
 
+        val fifo = WaStreamFifoPipe(cloneOf(io.sData.payload), 16)
+
+        val channelTimes: UInt = RegNext(io.channelIn >> log2Up(paddingConfig.COMPUTE_CHANNEL_NUM), 0)
+        val channelTimesC = RegNext(channelTimes - 1)
+        val colTimes = RegNext(io.colNumOut - 1)
+
+        val rowTimes = RegNext(io.rowNumOut - 1)
+        val channelCnt = WaCounter(fifo.io.push.fire, channelTimesC.getBitsWidth, channelTimesC)
+        val colCnt = WaCounter(fifo.io.push.fire && channelCnt.valid, colTimes.getBitsWidth, colTimes)
+        val rowCnt = WaCounter(stateNext === LAST, rowTimes.getBitsWidth, rowTimes)
+
+        val colTimes2 = Reg(UInt(io.colNumIn.getWidth bits))
+        when(io.enPadding(PaddingEnum.leftIndex)) {
+            colTimes2 := io.colNumIn
+        } otherwise {
+            colTimes2 := io.colNumIn - 1
+        }
+
+        val rowTimes2 = Reg(UInt(io.rowNumIn.getWidth bits))
+        when(io.enPadding(PaddingEnum.upIndex)) {
+            rowTimes2 := io.rowNumIn + 1
+        } otherwise {
+            rowTimes2 := io.rowNumIn
+        }
+        val leftEnd = selfClear(channelCnt.valid && fifo.io.push.fire)
+        val rightEnd = selfClear(channelCnt.valid && fifo.io.push.fire && colCnt.valid)
+        val upCentralDownEnd = selfClear(channelCnt.valid && fifo.io.push.fire && (colCnt.count === colTimes2))
+        val enDown = selfClear(io.enPadding(PaddingEnum.downIndex) && rowCnt.count === rowTimes2)
 
         val initCounter = WaCounter(isActive(INIT), 3, 7)
         IDLE.whenIsActive {
@@ -87,7 +116,12 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
                 goto(INIT)
             }
         }
-        INIT.onEntry(initCounter.clear)
+        INIT.onEntry {
+            initCounter.clear
+            rowCnt.clear
+            colCnt.clear
+            channelCnt.clear
+        }
         INIT.whenIsActive {
             when(initCounter.valid) {
                 when(io.enPadding(PaddingEnum.leftIndex)) {
@@ -99,7 +133,24 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
                 }
             }
         }
+        LEFT.whenIsActive {
 
+        }
+        UP.whenIsActive {
+
+        }
+        RIGHT.whenIsActive {
+
+        }
+        CENTRAL.whenIsActive {
+
+        }
+        DOWN.whenIsActive {
+
+        }
+        LAST.whenIsActive {
+
+        }
     }
 
     io.sData.ready := False
@@ -114,12 +165,14 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
         }
     }
 
-    private def selfClear(in: Bool, en: Bool): Unit = {
+    private def selfClear(en: Bool): Bool = {
+        val out = Bool()
         when(en) {
-            in := True
+            out := True
         } otherwise {
-            in := False
+            out := False
         }
+        out
     }
 
 
