@@ -1,10 +1,11 @@
 package conv.dataGenerate
 
 import com.google.gson.JsonParser
-import spinal.core.{Area, Bits, Bool, Bundle, ClockDomainConfig, Component, False, HIGH, IntToBits, IntToBuilder, Reg, RegInit, RegNext, SYNC, SpinalConfig, SpinalEnum, True, UInt, binaryOneHot, in, is, log2Up, out, switch, when}
-import spinal.lib.{Counter, master, slave}
+import spinal.core._
+import spinal.lib._
 import wa.{WaCounter, WaStreamFifo}
 import spinal.core.sim._
+import spinal.lib.fsm._
 
 import scala.io.Source
 
@@ -65,6 +66,41 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
     io.rowNumOut := genRowColOut(leftRight, io.rowNumIn)
     io.colNumOut := genRowColOut(upDown, io.colNumIn)
 
+
+    val last = Reg(Bool()) init (False)
+
+
+    val state = new StateMachine {
+        val IDLE = new State() with EntryPoint
+        val INIT = new State()
+        val LEFT = new State()
+        val UP = new State()
+        val RIGHT = new State()
+        val CENTRAL = new State()
+        val DOWN = new State()
+        val LAST = new State()
+
+
+        val initCounter = WaCounter(isActive(INIT), 3, 7)
+        IDLE.whenIsActive {
+            when(io.start.rise()) {
+                goto(INIT)
+            }
+        }
+        INIT.onEntry(initCounter.clear)
+        INIT.whenIsActive {
+            when(initCounter.valid) {
+                when(io.enPadding(PaddingEnum.leftIndex)) {
+                    goto(LEFT)
+                } elsewhen io.enPadding(PaddingEnum.upIndex) {
+                    goto(UP)
+                } otherwise {
+                    goto(CENTRAL)
+                }
+            }
+        }
+
+    }
 
     io.sData.ready := False
     io.mData.valid := False
