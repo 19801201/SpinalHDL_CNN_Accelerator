@@ -71,7 +71,7 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
     val last = Reg(Bool()) init (False)
 
 
-    val state = new StateMachine {
+    val fsm = new StateMachine {
         val IDLE = new State() with EntryPoint
         val INIT = new State()
         val LEFT = new State()
@@ -88,9 +88,11 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
         val colTimes = RegNext(io.colNumOut - 1)
 
         val rowTimes = RegNext(io.rowNumOut - 1)
-        val channelCnt = WaCounter(fifo.io.push.fire, channelTimesC.getBitsWidth, channelTimesC)
-        val colCnt = WaCounter(fifo.io.push.fire && channelCnt.valid, colTimes.getBitsWidth, colTimes)
-        val rowCnt = WaCounter(stateNext === LAST, rowTimes.getBitsWidth, rowTimes)
+        //        val channelCnt = WaCounter(fifo.io.push.fire, channelTimesC.getBitsWidth, channelTimesC)
+        val channelCnt = Reg(UInt(channelTimesC.getBitsWidth bits))
+        //        val colCnt = WaCounter(fifo.io.push.fire && channelCnt.valid, colTimes.getBitsWidth, colTimes)
+        val colCnt = Reg(UInt(colTimes.getBitsWidth bits))
+        val rowCnt = WaCounter(isEntering(LAST), rowTimes.getBitsWidth, rowTimes)
 
         val colTimes2 = Reg(UInt(io.colNumIn.getWidth bits))
         when(io.enPadding(PaddingEnum.leftIndex)) {
@@ -105,25 +107,40 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
         } otherwise {
             rowTimes2 := io.rowNumIn
         }
-        val leftEnd = selfClear(channelCnt.valid && fifo.io.push.fire)
-        val rightEnd = selfClear(channelCnt.valid && fifo.io.push.fire && colCnt.valid)
-        val upCentralDownEnd = selfClear(channelCnt.valid && fifo.io.push.fire && (colCnt.count === colTimes2))
+        //        val leftEnd = selfClear(channelCnt.valid && fifo.io.push.fire)
+        //        val rightEnd = selfClear(channelCnt.valid && fifo.io.push.fire && colCnt.valid)
+        //        val upCentralDownEnd = selfClear(channelCnt.valid && fifo.io.push.fire && (colCnt.count === colTimes2))
         val enDown = selfClear(io.enPadding(PaddingEnum.downIndex) && rowCnt.count === rowTimes2)
+        val enUp = selfClear(io.enPadding(PaddingEnum.upIndex) && rowCnt.count === 0)
+        val lastEnd = selfClear(rowCnt.count === rowTimes)
 
-        val initCounter = WaCounter(isActive(INIT), 3, 7)
+        //        val initCounter = WaCounter(isActive(INIT), 3, 7)
+        val initCounter = Reg(UInt(3 bits))
+
+        val zeroValid: Bool = selfClear(isActive(LEFT) || isActive(RIGHT) || isActive(UP) || isActive(DOWN))
+        when(isActive(CENTRAL)) {
+            fifo.io.push.valid := io.sData.valid
+            fifo.io.push.payload := io.sData.payload
+        } otherwise {
+            fifo.io.push.valid := zeroValid
+            assign(fifo.io.push.payload, io.zeroDara.asUInt, paddingConfig.DATA_WIDTH)
+        }
+        io.sData.ready <> (fifo.io.push.ready && isActive(CENTRAL))
+        fifo.io.pop <> io.mData
+
         IDLE.whenIsActive {
             when(io.start.rise()) {
                 goto(INIT)
             }
         }
         INIT.onEntry {
-            initCounter.clear
+            initCounter := 0
             rowCnt.clear
-            colCnt.clear
-            channelCnt.clear
+            colCnt := 0
+            channelCnt := 0
         }
         INIT.whenIsActive {
-            when(initCounter.valid) {
+            when(initCounter === 7) {
                 when(io.enPadding(PaddingEnum.leftIndex)) {
                     goto(LEFT)
                 } elsewhen io.enPadding(PaddingEnum.upIndex) {
@@ -132,30 +149,90 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
                     goto(CENTRAL)
                 }
             }
+            initCounter := initCounter + 1
         }
         LEFT.whenIsActive {
-
+            channelCntFun
+            colCntFun
+            when(channelCnt === channelTimesC && fifo.io.push.fire) {
+                when(enUp) {
+                    goto(UP)
+                } elsewhen enDown {
+                    goto(DOWN)
+                } otherwise {
+                    goto(CENTRAL)
+                }
+            }
         }
         UP.whenIsActive {
-
+            channelCntFun
+            colCntFun
+            when(channelCnt === channelTimesC && fifo.io.push.fire && (colCnt === colTimes2)) {
+                when(io.enPadding(PaddingEnum.rightIndex)) {
+                    goto(RIGHT)
+                } otherwise {
+                    goto(LAST)
+                }
+            }
         }
         RIGHT.whenIsActive {
-
+            channelCntFun
+            colCntFun
+            when(channelCnt === channelTimesC && fifo.io.push.fire && colCnt === colTimes) {
+                goto(LAST)
+            }
         }
         CENTRAL.whenIsActive {
-
+            channelCntFun
+            colCntFun
+            when(channelCnt === channelTimesC && fifo.io.push.fire && (colCnt === colTimes2)) {
+                when(io.enPadding(PaddingEnum.rightIndex)) {
+                    goto(RIGHT)
+                } otherwise {
+                    goto(LAST)
+                }
+            }
         }
         DOWN.whenIsActive {
-
+            channelCntFun
+            colCntFun
+            when(channelCnt === channelTimesC && fifo.io.push.fire && (colCnt === colTimes2)) {
+                when(io.enPadding(PaddingEnum.rightIndex)) {
+                    goto(RIGHT)
+                } otherwise {
+                    goto(LAST)
+                }
+            }
         }
         LAST.whenIsActive {
+            when(lastEnd) {
+                goto(IDLE)
+            } elsewhen io.enPadding(PaddingEnum.leftIndex) {
+                goto(LEFT)
+            } elsewhen enDown {
+                //记得测试这个临界条件
+                goto(DOWN)
+            } otherwise {
+                goto(CENTRAL)
+            }
 
         }
-    }
 
-    io.sData.ready := False
-    io.mData.valid := False
-    io.mData.payload := 0
+        def channelCntFun: Unit = {
+            when(channelCnt === channelTimesC) {
+                channelCnt := 0
+            } elsewhen fifo.io.push.fire {
+                channelCnt := channelCnt + 1
+            }
+        }
+        def colCntFun: Unit = {
+            when(colCnt === colTimes) {
+                colCnt := 0
+            } elsewhen (fifo.io.push.fire && channelCnt === channelTimesC) {
+                colCnt := colCnt + 1
+            }
+        }
+    }
 
     private def assign(dst: UInt, src: UInt, dataWidth: Int): Unit = {
         if (dst.getWidth == dataWidth) dst := src
