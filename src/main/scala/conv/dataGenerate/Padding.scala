@@ -10,10 +10,10 @@ import wa.WaStream.WaStreamFifoPipe
 
 import scala.io.Source
 
-case class PaddingConfig(DATA_WIDTH: Int, CHANNEL_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE_WIDTH: Int, ZERO_NUM: Int) {
+case class PaddingConfig(DATA_WIDTH: Int, CHANNEL_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, ROW_WIDTH: Int, COL_WIDTH: Int) {
     val PICTURE_NUM = 1
     val STREAM_DATA_WIDTH = DATA_WIDTH * PICTURE_NUM * COMPUTE_CHANNEL_NUM
-    val ZERO_NUM_WIDTH = ZERO_NUM.toBinaryString.length
+//    val ZERO_NUM_WIDTH = ZERO_NUM.toBinaryString.length
 }
 
 object PaddingEnum {
@@ -36,10 +36,10 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
         val enPadding = in Vec(Bool(), 4)
         val channelIn = in UInt (paddingConfig.CHANNEL_WIDTH bits)
         val start = in Bool()
-        val rowNumIn = in UInt (paddingConfig.FEATURE_WIDTH bits)
-        val rowNumOut = out UInt (paddingConfig.FEATURE_WIDTH + 1 bits)
-        val colNumIn = in UInt (paddingConfig.FEATURE_WIDTH bits)
-        val colNumOut = out UInt (paddingConfig.FEATURE_WIDTH + 1 bits)
+        val rowNumIn = in UInt (paddingConfig.ROW_WIDTH bits)
+        val rowNumOut = out UInt (paddingConfig.ROW_WIDTH + 1 bits)
+        val colNumIn = in UInt (paddingConfig.COL_WIDTH bits)
+        val colNumOut = out UInt (paddingConfig.COL_WIDTH + 1 bits)
         val zeroDara = in Bits (paddingConfig.DATA_WIDTH bits)
         //        val zeroNum = in UInt (paddingConfig.ZERO_NUM_WIDTH bits)
     }

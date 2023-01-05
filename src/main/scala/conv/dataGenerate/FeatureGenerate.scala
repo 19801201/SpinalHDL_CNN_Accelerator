@@ -4,7 +4,7 @@ import spinal.core.{Area, Bits, Bool, Bundle, Component, Device, False, IntToBui
 import spinal.lib.{Delay, Flow, IMasterSlave, StreamFifo, flowBitsPimped, master, slave}
 import wa.{WaCounter, WaStreamFifo}
 
-case class FeatureGenerateConfig(DATA_WIDTH: Int, CHANNEL_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE_WIDTH: Int, KERNEL_NUM: Int, FEATURE_RAM_DEPTH: Int) {
+case class FeatureGenerateConfig(DATA_WIDTH: Int, CHANNEL_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, ROW_WIDTH: Int, COL_WIDTH: Int, KERNEL_NUM: Int, FEATURE_RAM_DEPTH: Int) {
     val PICTURE_NUM = 1
     val STREAM_DATA_WIDTH = DATA_WIDTH * PICTURE_NUM * COMPUTE_CHANNEL_NUM
 }
@@ -86,8 +86,8 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     val io = new Bundle {
         val sData = slave Stream UInt(featureGenerateConfig.STREAM_DATA_WIDTH bits)
         val mData = GenerateMatrixPort(featureGenerateConfig.STREAM_DATA_WIDTH, featureGenerateConfig.KERNEL_NUM)
-        val rowNumIn = in UInt (featureGenerateConfig.FEATURE_WIDTH bits)
-        val colNumIn = in UInt (featureGenerateConfig.FEATURE_WIDTH bits)
+        val rowNumIn = in UInt (featureGenerateConfig.ROW_WIDTH bits)
+        val colNumIn = in UInt (featureGenerateConfig.COL_WIDTH bits)
         val start = in Bool()
         val channelIn = in UInt (featureGenerateConfig.CHANNEL_WIDTH bits)
         //        val last = out Bool()
@@ -126,8 +126,8 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     val initCount = WaCounter(fsm.currentState === FeatureGenerateEnum.INIT, 3, 5)
     fsm.initEnd := initCount.valid
     val channelCnt = WaCounter(io.sData.fire, featureGenerateConfig.CHANNEL_WIDTH, channelTimes - 1)
-    val columnCnt = WaCounter(channelCnt.valid && io.sData.fire, featureGenerateConfig.FEATURE_WIDTH, io.colNumIn - 1)
-    val rowCnt = WaCounter(fsm.currentState === FeatureGenerateEnum.END, featureGenerateConfig.FEATURE_WIDTH, io.rowNumIn - 1)
+    val columnCnt = WaCounter(channelCnt.valid && io.sData.fire, featureGenerateConfig.COL_WIDTH, io.colNumIn - 1)
+    val rowCnt = WaCounter(fsm.currentState === FeatureGenerateEnum.END, featureGenerateConfig.ROW_WIDTH, io.rowNumIn - 1)
 
     fsm.waitEnd := channelCnt.valid && columnCnt.valid
     fsm.wrEnd := channelCnt.valid && columnCnt.valid

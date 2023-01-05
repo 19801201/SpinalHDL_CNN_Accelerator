@@ -18,7 +18,7 @@ object ConvType {
  * @param MAX_CHANNEL_OUT         支持的最大的卷积核数量
  *
  */
-case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHANNEL_OUT_NUM: Int, CHANNEL_WIDTH: Int, WEIGHT_DEPTH: Int, QUAN_DEPTH: Int, FEATURE: Int, FEATURE_RAM_DEPTH: Int, ZERO_NUM: Int) {
+case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHANNEL_OUT_NUM: Int, CHANNEL_WIDTH: Int, WEIGHT_DEPTH: Int, QUAN_DEPTH: Int, ROW_WIDTH: Int, COL_WIDTH: Int, FEATURE_RAM_DEPTH: Int) {
     //conv_typy由io控制，这里按conv33生成配置，conv11复用conv33资源
     val CONV_TYPE: String = ConvType.conv33
     require(CONV_TYPE == ConvType.conv33 || CONV_TYPE == ConvType.conv11, "CONV_TYPE只支持conv33和conv11类型")
@@ -27,7 +27,9 @@ case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHAN
         case ConvType.conv11 => 1
         case _ => -1
     }
-    val FEATURE_WIDTH = log2Up(FEATURE)
+//    val FEATURE_WIDTH = log2Up(FEATURE)
+    val CONV_ROW_WIDTH = ROW_WIDTH + 1
+    val CONV_COL_WIDTH = COL_WIDTH + 1
     val PICTURE_NUM = 1
     val FEATURE_S_DATA_WIDTH = DATA_WIDTH * COMPUTE_CHANNEL_IN_NUM * PICTURE_NUM
     //    val FEATURE_NINE_DEPTH =
@@ -54,7 +56,7 @@ case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHAN
 
     val leakyRatio = 0.1
 
-    val dataGenerateConfig = DataGenerateConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_IN_NUM, FEATURE_WIDTH, KERNEL_NUM, FEATURE_RAM_DEPTH, ZERO_NUM)
+    val dataGenerateConfig = DataGenerateConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_IN_NUM, ROW_WIDTH: Int, COL_WIDTH: Int, KERNEL_NUM, FEATURE_RAM_DEPTH)
 
     //一般来说经过3*3卷积，图片尺寸不变，通道变成2倍，因此深度乘2
     //如640*640*32 --》 640*640*64

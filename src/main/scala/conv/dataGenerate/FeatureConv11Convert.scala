@@ -10,8 +10,8 @@ class FeatureConv11Convert(featureGenerateConfig: FeatureGenerateConfig) extends
     val io = new Bundle {
         val sData = slave Stream UInt(S_DATA_WIDTH bits)
         val mData = GenerateMatrixPort(S_DATA_WIDTH, featureGenerateConfig.KERNEL_NUM)
-        val rowNumIn = in UInt (featureGenerateConfig.FEATURE_WIDTH bits)
-        val colNumIn = in UInt (featureGenerateConfig.FEATURE_WIDTH bits)
+        val rowNumIn = in UInt (featureGenerateConfig.ROW_WIDTH bits)
+        val colNumIn = in UInt (featureGenerateConfig.COL_WIDTH bits)
         val start = in Bool()
         val channelIn = in UInt (featureGenerateConfig.CHANNEL_WIDTH bits)
     }
@@ -23,8 +23,8 @@ class FeatureConv11Convert(featureGenerateConfig: FeatureGenerateConfig) extends
 
     val channelInTimes = RegNext(io.channelIn >> log2Up(featureGenerateConfig.COMPUTE_CHANNEL_NUM))
     val channelCnt = WaCounter(io.sData.fire, featureGenerateConfig.CHANNEL_WIDTH, channelInTimes - 1)
-    val columnCnt = WaCounter(channelCnt.valid, featureGenerateConfig.FEATURE_WIDTH, io.colNumIn - 1)
-    val rowCnt = WaCounter(fsm.currentState === FeatureWidthConvertEnum.END, featureGenerateConfig.FEATURE_WIDTH, io.rowNumIn - 1)
+    val columnCnt = WaCounter(channelCnt.valid, featureGenerateConfig.ROW_WIDTH, io.colNumIn - 1)
+    val rowCnt = WaCounter(fsm.currentState === FeatureWidthConvertEnum.END, featureGenerateConfig.COL_WIDTH, io.rowNumIn - 1)
     // val mCount = RegNext(channelInTimes * io.colNumIn)
     fsm.fifoReady := io.mData.ready
     fsm.sendEnd := channelCnt.valid && columnCnt.valid

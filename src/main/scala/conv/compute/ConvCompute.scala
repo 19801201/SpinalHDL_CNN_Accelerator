@@ -21,14 +21,14 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val copyWeightDone = out Bool()
         val computeComplete = out Bool()
 
-        val rowNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
-        val colNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
+        val rowNumIn = in UInt (convConfig.CONV_ROW_WIDTH bits)
+        val colNumIn = in UInt (convConfig.CONV_COL_WIDTH bits)
         val channelIn = in UInt (convConfig.CHANNEL_WIDTH bits)
         val channelOut = in UInt (convConfig.CHANNEL_WIDTH bits)
-        val enPadding = in Bool()
+        val enPadding = in Vec(Bool(), 4)
         val enActivation = in Bool()
         val zeroDara = in Bits (convConfig.dataGenerateConfig.DATA_WIDTH bits)
-        val zeroNum = in UInt (convConfig.dataGenerateConfig.paddingConfig.ZERO_NUM_WIDTH bits)
+        //        val zeroNum = in UInt (convConfig.dataGenerateConfig.paddingConfig.ZERO_NUM_WIDTH bits)
         val weightNum = in UInt (log2Up(convConfig.WEIGHT_S_DATA_DEPTH) bits)
         val quanNum = in UInt (log2Up(convConfig.QUAN_S_DATA_DEPTH) bits)
         val quanZeroData = in UInt (8 bits)
@@ -73,7 +73,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         dataGenerate.io.colNumIn <> io.colNumIn
         dataGenerate.io.channelIn <> io.channelIn
         dataGenerate.io.zeroDara <> io.zeroDara
-        dataGenerate.io.zeroNum <> io.zeroNum
+        //        dataGenerate.io.zeroNum <> io.zeroNum
         dataGenerate.io.enPadding <> io.enPadding
         dataGenerate.io.convType <> convType
 
@@ -198,7 +198,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val addKernelData = Vec(Vec(SInt(convConfig.addKernelWidth bits), convConfig.COMPUTE_CHANNEL_IN_NUM), convConfig.COMPUTE_CHANNEL_OUT_NUM / 2)
         val addKernel = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM / 2, convConfig.COMPUTE_CHANNEL_IN_NUM) { (i, j) =>
             def gen = {
-                val add = xAdd(convConfig.mulWeightWidth, convConfig.addKernelWidth, convConfig.KERNEL_NUM, i==0 && j==0).setName("addKernel")
+                val add = xAdd(convConfig.mulWeightWidth, convConfig.addKernelWidth, convConfig.KERNEL_NUM, i == 0 && j == 0).setName("addKernel")
                 (0 until convConfig.KERNEL_NUM).foreach(k => {
                     add.io.A(k) <> mulFeatureWeightData(k)(i)(j).asSInt
                 }
@@ -213,7 +213,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val addChannelData = Vec(SInt(convConfig.addChannelInWidth bits), convConfig.COMPUTE_CHANNEL_OUT_NUM / 2)
         val addChannelIn = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM / 2) { i =>
             def gen = {
-                val add = xAdd(convConfig.addKernelWidth, convConfig.addChannelInWidth, convConfig.COMPUTE_CHANNEL_IN_NUM, i==0)
+                val add = xAdd(convConfig.addKernelWidth, convConfig.addChannelInWidth, convConfig.COMPUTE_CHANNEL_IN_NUM, i == 0)
                 (0 until convConfig.COMPUTE_CHANNEL_IN_NUM).foreach(j => {
                     add.io.A(j) <> addKernelData(i)(j)
                 })
@@ -271,5 +271,5 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
 }
 
 object ConvCompute extends App {
-    SpinalVerilog(new ConvCompute(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1)))
+    SpinalVerilog(new ConvCompute(ConvConfig(8, 8, 8, 12, 8192, 512, 10, 10, 2048)))
 }
