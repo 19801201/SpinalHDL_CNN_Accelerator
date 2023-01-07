@@ -79,8 +79,8 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
         val normEnd = out Bool()
         //val sDataValid = in Bool()  //sData
         val sDataReady = in Bool()
-        val rowNumIn = in UInt (convConfig.CONV_ROW_WIDTH bits)
-        val colNumIn = in UInt (convConfig.CONV_COL_WIDTH bits)
+        val rowNumIn = in UInt (convConfig.ROW_WIDTH bits)
+        val colNumIn = in UInt (convConfig.COL_WIDTH bits)
         val channelIn = in UInt (convConfig.CHANNEL_WIDTH bits)
         val channelOut = in UInt (convConfig.CHANNEL_WIDTH bits)
 
@@ -132,8 +132,8 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     val channelOutTimes = RegNext(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM))
     val channelInCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE, convConfig.CHANNEL_WIDTH, channelInTimes - 1)
     val channelOutCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.valid, convConfig.CHANNEL_WIDTH, channelOutTimes - 1)
-    val columnCnt = WaCounter(channelInCnt.valid && channelOutCnt.valid, convConfig.CONV_COL_WIDTH, io.colNumIn - 1)
-    val rowCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.END, convConfig.CONV_ROW_WIDTH, io.rowNumIn - 1)
+    val columnCnt = WaCounter(channelInCnt.valid && channelOutCnt.valid, convConfig.COL_WIDTH, io.colNumIn - 1)
+    val rowCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.END, convConfig.ROW_WIDTH, io.rowNumIn - 1)
     when(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.IDLE) {
         channelInCnt.clear
         channelOutCnt.clear

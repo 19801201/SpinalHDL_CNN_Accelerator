@@ -28,8 +28,8 @@ case class ConvConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_IN_NUM: Int, COMPUTE_CHAN
         case _ => -1
     }
 //    val FEATURE_WIDTH = log2Up(FEATURE)
-    val CONV_ROW_WIDTH = ROW_WIDTH + 1
-    val CONV_COL_WIDTH = COL_WIDTH + 1
+//    val CONV_ROW_WIDTH = ROW_WIDTH + 1
+//    val CONV_COL_WIDTH = COL_WIDTH + 1
     val PICTURE_NUM = 1
     val FEATURE_S_DATA_WIDTH = DATA_WIDTH * COMPUTE_CHANNEL_IN_NUM * PICTURE_NUM
     //    val FEATURE_NINE_DEPTH =

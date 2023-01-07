@@ -61,8 +61,8 @@ class Focus(convConfig: ConvConfig) extends Component {
     val io = new Bundle {
         val sData = slave Stream (UInt(sDataWidth + (if (imageType.dataType == imageType.rgb) convConfig.DATA_WIDTH else 0) bits))
         val mData = master Stream (UInt(sDataWidth * 4 bits))
-        val rowNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
-        val colNumIn = in UInt (convConfig.FEATURE_WIDTH bits)
+        val rowNumIn = in UInt (convConfig.ROW_WIDTH bits)
+        val colNumIn = in UInt (convConfig.COL_WIDTH bits)
         val start = in Bool()
     }
     noIoPrefix()
@@ -71,15 +71,15 @@ class Focus(convConfig: ConvConfig) extends Component {
     val initCnt = WaCounter(fsm.currentState === FocusEnum.INIT, 3, 7)
     fsm.initEnd := initCnt.valid
 
-    val columnCnt = WaCounter(io.sData.fire, convConfig.FEATURE_WIDTH, io.colNumIn - 1)
-    val rowCnt = WaCounter(columnCnt.valid && io.sData.fire, convConfig.FEATURE_WIDTH, io.rowNumIn - 1)
+    val columnCnt = WaCounter(io.sData.fire, convConfig.COL_WIDTH, io.colNumIn - 1)
+    val rowCnt = WaCounter(columnCnt.valid && io.sData.fire, convConfig.ROW_WIDTH, io.rowNumIn - 1)
 
     fsm.computeEnd := columnCnt.valid && rowCnt.valid
 
-    val mem = Mem(UInt(sDataWidth bits), convConfig.FEATURE)
-    val rowMemWriteAddr = WaCounter((!rowCnt.count(0)) && io.sData.fire, convConfig.FEATURE_WIDTH, io.colNumIn - 1)
+    val mem = Mem(UInt(sDataWidth bits), scala.math.pow(2, convConfig.COL_WIDTH).toInt)
+    val rowMemWriteAddr = WaCounter((!rowCnt.count(0)) && io.sData.fire, convConfig.COL_WIDTH, io.colNumIn - 1)
     mem.write(rowMemWriteAddr.count.resized, io.sData.payload.resize(sDataWidth), enable = (!rowCnt.count(0)) && io.sData.fire)
-    val rowMemReadAddr = WaCounter(rowCnt.count(0) && io.sData.fire, convConfig.FEATURE_WIDTH, io.colNumIn - 1)
+    val rowMemReadAddr = WaCounter(rowCnt.count(0) && io.sData.fire, convConfig.COL_WIDTH, io.colNumIn - 1)
 
 
     when(fsm.currentState === FocusEnum.IDLE) {

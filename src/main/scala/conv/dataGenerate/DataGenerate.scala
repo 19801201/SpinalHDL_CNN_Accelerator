@@ -9,7 +9,7 @@ case class DataGenerateConfig(DATA_WIDTH: Int, CHANNEL_WIDTH: Int, COMPUTE_CHANN
     val PICTURE_NUM = 1
     val STREAM_DATA_WIDTH = DATA_WIDTH * PICTURE_NUM * COMPUTE_CHANNEL_NUM
     val paddingConfig = PaddingConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_NUM, ROW_WIDTH, COL_WIDTH)
-    val featureGenerateConfig = FeatureGenerateConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_NUM, ROW_WIDTH + 1, COL_WIDTH + 1, KERNEL_NUM, FEATURE_RAM_DEPTH)
+    val featureGenerateConfig = FeatureGenerateConfig(DATA_WIDTH, CHANNEL_WIDTH, COMPUTE_CHANNEL_NUM, ROW_WIDTH, COL_WIDTH, KERNEL_NUM, FEATURE_RAM_DEPTH)
 }
 
 class DataGenerate(dataGenerateConfig: DataGenerateConfig) extends Component {

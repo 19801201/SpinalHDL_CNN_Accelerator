@@ -21,8 +21,8 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val copyWeightDone = out Bool()
         val computeComplete = out Bool()
 
-        val rowNumIn = in UInt (convConfig.CONV_ROW_WIDTH bits)
-        val colNumIn = in UInt (convConfig.CONV_COL_WIDTH bits)
+        val rowNumIn = in UInt (convConfig.ROW_WIDTH bits)
+        val colNumIn = in UInt (convConfig.COL_WIDTH bits)
         val channelIn = in UInt (convConfig.CHANNEL_WIDTH bits)
         val channelOut = in UInt (convConfig.CHANNEL_WIDTH bits)
         val enPadding = in Vec(Bool(), 4)

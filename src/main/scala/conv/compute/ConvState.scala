@@ -36,13 +36,19 @@ object CONV_STATE extends Area {
 
     def CHANNEL_OUT = 41 downto 32
 
-    def EN_PADDING = 42 downto 42
+    def EN_PADDING_LEFT = 42 downto 42
 
-    def EN_ACTIVATION = 43 downto 43
+    def EN_PADDING_RIGHT = 43 downto 43
 
-    def Z1 = 51 downto 44
+    def EN_PADDING_UP = 44 downto 44
 
-    def Z1_NUM = 54 downto 52
+    def EN_PADDING_DOWN = 45 downto 45
+
+    def EN_ACTIVATION = 46 downto 46
+
+    def Z1 = 54 downto 47
+
+    //    def Z1_NUM = 54 downto 52
 
     def Z3 = 62 downto 55
 
@@ -59,7 +65,10 @@ object CONV_STATE extends Area {
     def AMEND = 159 downto 128
 
     val Reg0 = ("ROW_NUM_IN", ROW_NUM_IN.length, "COL_NUM_IN", COL_NUM_IN.length, "CHANNEL_IN", CHANNEL_IN.length)
-    val Reg1 = ("CHANNEL_OUT", CHANNEL_OUT.length, "EN_PADDING", EN_PADDING.length, "EN_ACTIVATION", EN_ACTIVATION.length, "Z1", Z1.length, "Z1_NUM", Z1_NUM.length, "Z3", Z3.length, "EN_STRIDE", EN_STRIDE.length)
+    val Reg1 = ("CHANNEL_OUT", CHANNEL_OUT.length, "EN_PADDING_LEFT", EN_PADDING_LEFT.length,
+        "EN_PADDING_RIGHT", EN_PADDING_RIGHT.length, "EN_PADDING_UP", EN_PADDING_UP.length,
+        "EN_PADDING_DOWN", EN_PADDING_DOWN.length, "EN_ACTIVATION", EN_ACTIVATION.length, "Z1", Z1.length,
+        "Z3", Z3.length, "EN_STRIDE", EN_STRIDE.length)
     val Reg2 = ("CONV_TYPE", CONV_TYPE.length, "FIRST_LAYER", FIRST_LAYER.length)
     val Reg3 = ("WEIGHT_NUM", WEIGHT_NUM.length, "QUAN_NUM", QUAN_NUM.length)
     val Reg4 = ("AMEND", AMEND.length)

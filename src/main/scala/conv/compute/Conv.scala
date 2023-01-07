@@ -37,7 +37,7 @@ class Conv(convConfig: ConvConfig) extends Component {
     val computeInstruction = io.instruction.reverse.reduceRight(_ ## _)
 
     //    val paraInstructionReg = Reg(Bits(paraInstruction.getWidth bits)) init 0
-//    val computeInstructionReg = Reg(Bits(computeInstruction.getWidth bits)) init 0
+    //    val computeInstructionReg = Reg(Bits(computeInstruction.getWidth bits)) init 0
     val computeInstructionReg = RegNext(computeInstruction) init 0
 
     //    when(convState.io.sign === CONV_STATE.PARA_SIGN) {
@@ -63,20 +63,25 @@ class Conv(convConfig: ConvConfig) extends Component {
     convCompute.io.channelOut := computeInstructionReg(CONV_STATE.CHANNEL_OUT).asUInt.resized
     convCompute.io.rowNumIn := computeInstructionReg(CONV_STATE.ROW_NUM_IN).asUInt.resized
     convCompute.io.colNumIn := computeInstructionReg(CONV_STATE.COL_NUM_IN).asUInt.resized
-    convCompute.io.enPadding := computeInstructionReg(CONV_STATE.EN_PADDING).asBool
+    convCompute.io.enPadding := Vec(
+        computeInstructionReg(CONV_STATE.EN_PADDING_DOWN).asBool,
+        computeInstructionReg(CONV_STATE.EN_PADDING_UP).asBool,
+        computeInstructionReg(CONV_STATE.EN_PADDING_RIGHT).asBool,
+        computeInstructionReg(CONV_STATE.EN_PADDING_LEFT).asBool
+    )
     convCompute.io.enActivation := computeInstructionReg(CONV_STATE.EN_ACTIVATION).asBool
     convCompute.io.zeroDara := computeInstructionReg(CONV_STATE.Z1).resized
-    convCompute.io.zeroNum := computeInstructionReg(CONV_STATE.Z1_NUM).asUInt.resized
+    //    convCompute.io.zeroNum := computeInstructionReg(CONV_STATE.Z1_NUM).asUInt.resized
     convCompute.io.quanZeroData := computeInstructionReg(CONV_STATE.Z3).asUInt.resized
     convCompute.io.convType := computeInstructionReg(CONV_STATE.CONV_TYPE).resized
     convCompute.io.enStride := computeInstructionReg(CONV_STATE.EN_STRIDE).asBool
     convCompute.io.firstLayer := computeInstructionReg(CONV_STATE.FIRST_LAYER).asBool
     convCompute.io.amendReg := computeInstructionReg(CONV_STATE.AMEND)
 
-//    convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
-        convCompute.io.weightNum := computeInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
-//    convCompute.io.quanNum := paraInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
-        convCompute.io.quanNum := computeInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
+    //    convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
+    convCompute.io.weightNum := computeInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
+    //    convCompute.io.quanNum := paraInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
+    convCompute.io.quanNum := computeInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
 
 
     (convState.io.dmaReadValid & (!computeInstructionReg(CONV_STATE.FIRST_LAYER).asBool)) <> io.dmaReadValid
@@ -100,7 +105,7 @@ class Conv(convConfig: ConvConfig) extends Component {
         convState.io.complete := 0
     }
 
-    val dest = Reg(Bits(2 bits)) init 3 addAttribute  ("max_fanout = \"10\"")
+    val dest = Reg(Bits(2 bits)) init 3 addAttribute ("max_fanout = \"10\"")
     when(io.control === CONV_STATE.START_PA) {
         dest := 0
     } elsewhen (io.control === CONV_STATE.START_CU) {
