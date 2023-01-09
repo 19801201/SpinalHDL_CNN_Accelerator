@@ -13,7 +13,7 @@ import scala.io.Source
 case class PaddingConfig(DATA_WIDTH: Int, CHANNEL_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, ROW_WIDTH: Int, COL_WIDTH: Int) {
     val PICTURE_NUM = 1
     val STREAM_DATA_WIDTH = DATA_WIDTH * PICTURE_NUM * COMPUTE_CHANNEL_NUM
-//    val ZERO_NUM_WIDTH = ZERO_NUM.toBinaryString.length
+    //    val ZERO_NUM_WIDTH = ZERO_NUM.toBinaryString.length
 }
 
 object PaddingEnum {
@@ -87,7 +87,7 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
         val channelTimesC = RegNext(channelTimes - 1)
         val colTimes = RegNext(io.colNumOut - 1)
 
-        val rowTimes = RegNext(io.rowNumOut - 1)
+        val rowTimes = RegNext(io.rowNumOut)
         //        val channelCnt = WaCounter(fifo.io.push.fire, channelTimesC.getBitsWidth, channelTimesC)
         val channelCnt = Reg(UInt(channelTimesC.getBitsWidth bits))
         //        val colCnt = WaCounter(fifo.io.push.fire && channelCnt.valid, colTimes.getBitsWidth, colTimes)
@@ -219,17 +219,22 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
         }
 
         def channelCntFun: Unit = {
-            when(channelCnt === channelTimesC) {
-                channelCnt := 0
-            } elsewhen fifo.io.push.fire {
-                channelCnt := channelCnt + 1
+            when(fifo.io.push.fire) {
+                when(channelCnt === channelTimesC) {
+                    channelCnt := 0
+                } otherwise {
+                    channelCnt := channelCnt + 1
+                }
             }
         }
+
         def colCntFun: Unit = {
-            when(colCnt === colTimes) {
-                colCnt := 0
-            } elsewhen (fifo.io.push.fire && channelCnt === channelTimesC) {
-                colCnt := colCnt + 1
+            when(fifo.io.push.fire && channelCnt === channelTimesC) {
+                when(colCnt === colTimes) {
+                    colCnt := 0
+                } elsewhen (channelCnt === channelTimesC) {
+                    colCnt := colCnt + 1
+                }
             }
         }
     }
