@@ -17,6 +17,7 @@ class TbMaxPoolingFix extends MaxPoolingFix(MaxPoolingFixConfig(8, 8, 640, 10)) 
 
     def init = {
         clockDomain.forkStimulus(5)
+        io.kernelNum #= 2 //5*5的MaxPooling
         io.sData.valid #= false
         io.sData.payload #= 0
         io.mData.ready #= false
@@ -56,7 +57,6 @@ class TbMaxPoolingFix extends MaxPoolingFix(MaxPoolingFixConfig(8, 8, 640, 10)) 
             //io.mData.ready.randomize()
             io.mData.ready #= true
             if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
-
                 i = i + 1
                 io.start #= false
                 val temp = dstFile(iter)
@@ -73,6 +73,12 @@ class TbMaxPoolingFix extends MaxPoolingFix(MaxPoolingFixConfig(8, 8, 640, 10)) 
                 iter = iter + 1
             }
         }
+        if(error>0){
+            println(s"error is $error\n")
+        } else{
+            println(s"ac\n")
+        }
+
         sleep(100)
         testFile.close()
         simSuccess()
@@ -88,8 +94,8 @@ object TbMaxPoolingFix extends App {
         dut.init
         dut.io.start #= true
         //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
-        dut.in("C:\\Users\\qingyu\\Desktop\\raw.txt")
-        dut.out("C:\\Users\\qingyu\\Desktop\\dst.txt","C:\\Users\\qingyu\\Desktop\\result.txt")
+        dut.in("C:\\Users\\qingyu\\Desktop\\k44444\\raw.txt")
+        dut.out("C:\\Users\\qingyu\\Desktop\\k44444\\dst.txt","C:\\Users\\qingyu\\Desktop\\k44444\\result.txt")
     }
     //C:\Users\qingyu\Desktop\
 }
