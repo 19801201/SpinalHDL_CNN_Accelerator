@@ -15,11 +15,12 @@ import spinal.lib.fsm._
  *
  * 尝试使用不使用储存器的反压，当下级的ready无效时，让每个寄存器的数据都锁存住。
  * 为了消除气泡，当下级的ready无效时，如果本寄存器中没有有效数据，那么本寄存器的ready有效。
- * 更新1：支持根据不同的输入来配置k的大小
+ * 更新1：支持根据不同的输入来配置k的大小。
  * 当k<=1时不支持，k=2时让k每次从第一的col和row得到的结果输出即可，当k=3时让col和row从第二个col和row输出结果。
  * 为了方便k==i时，计算k为i+2的maxPool。
  * 需要调整两部分内容，第一部分是数据通路需要调整MEM输出的通路，第二部分是valid信号拉高的条件需要调整，根据不同的k在不同的时机拉高。
- *
+ * 更新2：支持根据不同的输入来配置s的大小。
+ * 当strideNum为i时，s为i+1。
  */
 case class MaxPoolingFixConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: Int, CHANNEL_WIDTH: Int) {
     val kernelSize = 5  //配置K的大小。当前最大为5最小为2，修改kernelNum的数量以支持更大的k。
@@ -30,6 +31,7 @@ case class MaxPoolingFixConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATUR
     val channelMemDepth = MAX_CHANNEL_NUM / COMPUTE_CHANNEL_NUM
     val channelMemWidth = FEATURE_WIDTH
     val rowMemDepth = MAX_CHANNEL_NUM / COMPUTE_CHANNEL_NUM * MAX_COL_NUM
+    val enStride = false
 }
 
 case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingFixConfig)extends Component {
@@ -41,6 +43,7 @@ case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingFixConfig)extends Compon
         val rowNumIn = in UInt (maxPoolingFixConfig.FEATURE_WIDTH bits)
         val colNumIn = in UInt (maxPoolingFixConfig.FEATURE_WIDTH bits)
         val kernelNum = in UInt (3 bits)//最大支持3bits。这个数据线给出的数如果大于原本kernelSize的最大值得到的结果是错误的。
+        val strideNum = if(maxPoolingFixConfig.enStride) in UInt (3 bits) else null
     }
     //流水线控制模块
     val valid = Vec(Reg(Bool()) init(False), 5)
@@ -107,11 +110,30 @@ case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingFixConfig)extends Compon
               goto(IDLE)
           }
     }
+    /***********************stride舍弃模块模块*/
+    val strideCol = if(maxPoolingFixConfig.enStride) {
+        WaCounter(fsm.channelCnt.valid && fire(4), maxPoolingFixConfig.FEATURE_WIDTH, io.strideNum)
+    } else {
+        null
+    }
+    val strideRow = if(maxPoolingFixConfig.enStride) {
+        WaCounter(fsm.colCnt.valid && fsm.channelCnt.valid && fire(4), maxPoolingFixConfig.FEATURE_WIDTH, io.strideNum)
+    } else {
+        null
+    }
+    val strideValid = if(maxPoolingFixConfig.enStride) {
+        when(strideRow.valid && fsm.channelCnt.valid && fire(4)){
+            strideCol.clear
+        }
+        !strideCol.count.orR & !strideRow.count.orR
+    } else {
+        True
+    }
     /***********************有效数据监测模块*/
     //val dataValid = fsm.colCnt.count >= U(maxPoolingFixConfig.kernelSize - 1, log2Up(maxPoolingFixConfig.kernelSize) bits) &
     //  fsm.rowCnt.count >= U(maxPoolingFixConfig.kernelSize - 1, log2Up(maxPoolingFixConfig.kernelSize) bits)
     //修改为根据io.kernelNum来判断数据是否有效
-    val dataValid = fsm.colCnt.count > io.kernelNum & fsm.rowCnt.count > io.kernelNum
+    val dataValid = fsm.colCnt.count > io.kernelNum & fsm.rowCnt.count > io.kernelNum & strideValid
     //这种情况下数据有效
     //数据无效的时候不需要下级模块结束 因此 io.MData.ready必须为1，让数据正常流出，io.MData.valid必须为0
     //VALID状态下，对于下级模块来说，VALID有效的条件为dataValid有效，并且第五级流水的数据真实有效。
@@ -119,7 +141,7 @@ case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingFixConfig)extends Compon
 
     /***********************流水线反压控制模块*/
     //流水线反压控制模块
-    io.sData.ready := ready(0) //在VALID状态下才能够接受数据
+    io.sData.ready := ready(0) //在VALID状态下才能够接受数据。
     io.mData.valid := valid(4) && dataValid // 当前模块的数据有效，并且数据是有意义的。
     //下一级无数据或者下一级准备好了
     val flowLineCtr = Array.tabulate(5)((i)=> {

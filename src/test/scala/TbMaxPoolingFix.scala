@@ -79,7 +79,7 @@ class TbMaxPoolingFix extends MaxPoolingFix(MaxPoolingFixConfig(8, 8, 640, 10)) 
             println(s"ac\n")
         }
 
-        sleep(100)
+        sleep(1000)
         testFile.close()
         simSuccess()
     }
@@ -94,8 +94,8 @@ object TbMaxPoolingFix extends App {
         dut.init
         dut.io.start #= true
         //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
-        dut.in("C:\\Users\\qingyu\\Desktop\\k44444\\raw.txt")
-        dut.out("C:\\Users\\qingyu\\Desktop\\k44444\\dst.txt","C:\\Users\\qingyu\\Desktop\\k44444\\result.txt")
+        dut.in("F:\\dataCompare\\TbMaxPoolingFix\\k5p0s1\\srcRaw.txt")
+        dut.out("F:\\dataCompare\\TbMaxPoolingFix\\k5p0s1\\dstResult.txt","F:\\dataCompare\\TbMaxPoolingFix\\k5p0s1\\srcResult.txt")
     }
     //C:\Users\qingyu\Desktop\
 }
