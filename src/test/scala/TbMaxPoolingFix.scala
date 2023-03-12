@@ -1,12 +1,12 @@
 import spinal.core.sim._
 import spinal.core._
 import conv.dataGenerate._
-import shape.{MaxPoolingFix, MaxPoolingFixConfig}
+import shape.{MaxPoolingConfig, MaxPoolingFix, MaxPoolingFixConfig}
 
 import java.io.{File, PrintWriter}
 import scala.io.Source
 
-class TbMaxPoolingFix extends MaxPoolingFix(MaxPoolingFixConfig(8, 8, 640, 10)) {
+class TbMaxPoolingFix extends MaxPoolingFix(MaxPoolingConfig(8, 8, 640, 10, 1024)) {
     def toHexString(width: Int, b: BigInt): String = {
         var s = b.toString(16)
         if (s.length < width) {

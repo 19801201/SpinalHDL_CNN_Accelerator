@@ -1,37 +1,105 @@
 import spinal.core.sim._
 import spinal.core._
-import shape._
-import TbCfg.Rom
-object TbMaxPooling extends App {
-        SimConfig.withWave.compile(new MaxPooling(MaxPoolingConfig(8,8,100,10,1024))).doSim{
-            dut=>
-                dut.clockDomain.forkStimulus(5)
-                dut.clockDomain.waitSampling(10)
-                dut.io.sData.valid #= false
-                dut.io.sData.payload #= 0
-                dut.io.mData.ready #= false
-                dut.io.colNumIn #= 100
-                dut.io.rowNumIn #= 100
-                dut.io.channelIn #= 32
-                dut.io.start #= false
-                dut.clockDomain.waitSampling(10)
-                dut.io.mData.ready #= true
-                dut.io.start #= true
-                dut.clockDomain.waitSampling()
-                dut.io.start #= false
-                for (i <- 0 until 100*100*4) {
-                    dut.io.sData.valid #= true
-                    dut.io.sData.payload #= i
-                    dut.clockDomain.waitSamplingWhere(dut.io.sData.valid.toBoolean && dut.io.sData.ready.toBoolean)
-    //                if(i == 5){
-    //                    dut.io.mData.ready #= false
-    //                    dut.clockDomain.waitSampling(10)
-    //                    dut.io.mData.ready #= true
-    //                }
-                    println(i)
+import conv.dataGenerate._
+import shape.{MaxPooling, MaxPoolingConfig, MaxPoolingFix, MaxPoolingFixConfig}
 
-                }
-                dut.io.sData.valid #= false
-                dut.clockDomain.waitSampling(10)
+import java.io.{File, PrintWriter}
+import scala.io.Source
+
+class TbMaxPooling extends MaxPooling(MaxPoolingConfig(8, 8, 640, 10, 1024)) {
+    def toHexString(width: Int, b: BigInt): String = {
+        var s = b.toString(16)
+        if (s.length < width) {
+            s = "0" * (width - s.length) + s
         }
+        s
+    }
+
+    def init = {
+        clockDomain.forkStimulus(5)
+
+        io.kernelNum #= 0 //(kernelNum + 2)*(kernelNum + 2)的MaxPooling
+        io.strideNum #= 1 //s = strideNum + 1
+        io.zeroNum #= 0   //p = zeroNum
+        io.enPadding #= false //开启/关键 padding
+        io.zeroDara #= 0 //补的数值
+
+        io.sData.valid #= false
+        io.sData.payload #= 0
+        io.mData.ready #= false
+        io.start #= false
+        //        io.enPadding(0) #= true
+        //        io.enPadding(1) #= true
+        //        io.enPadding(2) #= false
+        //        io.enPadding(3) #= true
+        io.channelIn #= 512
+        io.rowNumIn #= 20
+        io.colNumIn #= 20
+        clockDomain.waitSampling(10)
+    }
+
+    def in(src: String): Unit = {
+        fork {
+            for (line <- Source.fromFile(src).getLines) {
+                io.sData.payload #= BigInt(line.trim, 16)
+                io.sData.valid #= true
+                clockDomain.waitSamplingWhere(io.sData.ready.toBoolean)
+            }
+        }
+    }
+
+    def out(dst_scala: String, dst: String): Unit = {
+
+        val testFile = new PrintWriter(new File(dst_scala))
+        val dstFile = Source. fromFile(dst).getLines().toArray
+        val total = dstFile.length
+        var error = 0
+        var iter = 0
+        var i = 0
+        while (i < dstFile.length) {
+            clockDomain.waitSampling()
+            //io.mData.ready.randomize()
+            io.mData.ready #= true
+            if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
+                i = i + 1
+                io.start #= false
+                val temp = dstFile(iter)
+                val o = toHexString(8 << 1, io.mData.payload.toBigInt)
+
+                if (!temp.equals(o)) {
+                    error = error + 1
+                }
+                if (iter % 10000 == 0) {
+                    val errorP = error * 100.0 / total
+                    println(s"total iter = $total current iter =  $iter :::  error count = $error error percentage = $errorP%")
+                }
+                testFile.write(o + "\r\n")
+                iter = iter + 1
+            }
+        }
+        if(error>0){
+            println(s"error is $error\n")
+        } else{
+            println(s"ac\n")
+        }
+
+        sleep(10000)
+        testFile.close()
+        simSuccess()
+    }
+}
+
+object TbMaxPooling extends App {
+    val spinalConfig = new SpinalConfig(
+        defaultClockDomainFrequency = FixedFrequency(200 MHz),
+        defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
+    )
+    SimConfig.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
+        dut.init
+        dut.io.start #= true
+        val path = "F:\\dataCompare\\TbMaxPoolingFix\\k2p0s2"
+        //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
+        dut.in(path + "\\srcRaw.txt")
+        dut.out(path + "\\dstResult.txt",path + "\\srcResult.txt")
+    }
 }

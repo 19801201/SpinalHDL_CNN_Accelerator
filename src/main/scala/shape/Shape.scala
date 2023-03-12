@@ -78,11 +78,11 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     maxPooling.io.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
     maxPooling.io.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
     maxPooling.io.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
-    maxPooling.enPadding <> instructionReg(Instruction.ENPADDING).asUInt.resized
-    maxPooling.kernelNum <> instructionReg(Instruction.KERNELNUM).asUInt.resized
-    maxPooling.strideNum <> instructionReg(Instruction.STRIDENUM).asUInt.resized
-    maxPooling.zeroDara <> instructionReg(Instruction.ZERODATA).asUInt.resized
-    maxPooling.zeroNum <> instructionReg(Instruction.ZERONUM).asUInt.resized
+    maxPooling.io.enPadding <> instructionReg(Instruction.ENPADDING).asBool.resized
+    maxPooling.io.kernelNum <> instructionReg(Instruction.KERNELNUM).asUInt.resized
+    maxPooling.io.strideNum <> instructionReg(Instruction.STRIDENUM).asUInt.resized
+    maxPooling.io.zeroDara <> instructionReg(Instruction.ZERODATA).asBits.resized
+    maxPooling.io.zeroNum <> instructionReg(Instruction.ZERONUM).asUInt.resized
 
     val split = new Split(shapeConfig.splitConfig)
     split.io.start <> Delay(shapeState.io.start(Start.SPLIT), 8)

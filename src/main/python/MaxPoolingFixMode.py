@@ -3,7 +3,7 @@ from torch import nn as nn
 import math
 import os
 #修改这三个参数产生不同的文件用于仿真测试
-kernel_size = 4
+kernel_size = 2
 padding = 0
 stride = 1
 path = "F:\\dataCompare\\TbMaxPoolingFix\\k{kernel_size}p{padding}s{stride}\\"

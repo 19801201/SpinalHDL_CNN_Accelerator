@@ -34,7 +34,7 @@ case class MaxPoolingFixConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATUR
     val enStride = false
 }
 
-case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingFixConfig)extends Component {
+case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingConfig)extends Component {
     val io = new Bundle {
         val sData = slave Stream (UInt(maxPoolingFixConfig.STREAM_DATA_WIDTH bits))
         val mData = master Stream (UInt(maxPoolingFixConfig.STREAM_DATA_WIDTH bits))
@@ -108,22 +108,30 @@ case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingFixConfig)extends Compon
         END
           .whenIsActive {
               goto(IDLE)
+              channelCnt.clear
+              colCnt.clear
+              rowCnt.clear
           }
     }
     /***********************stride舍弃模块模块*/
+    val dataValid1 = fsm.colCnt.count > io.kernelNum & fsm.rowCnt.count > io.kernelNum
     val strideCol = if(maxPoolingFixConfig.enStride) {
-        WaCounter(fsm.channelCnt.valid && fire(4), maxPoolingFixConfig.FEATURE_WIDTH, io.strideNum)
+        WaCounter(fsm.channelCnt.valid && fire(4) && dataValid1, maxPoolingFixConfig.FEATURE_WIDTH, io.strideNum)
     } else {
         null
     }
     val strideRow = if(maxPoolingFixConfig.enStride) {
-        WaCounter(fsm.colCnt.valid && fsm.channelCnt.valid && fire(4), maxPoolingFixConfig.FEATURE_WIDTH, io.strideNum)
+        WaCounter(fsm.colCnt.valid && fsm.channelCnt.valid && fire(4) && dataValid1, maxPoolingFixConfig.FEATURE_WIDTH, io.strideNum)
     } else {
         null
     }
     val strideValid = if(maxPoolingFixConfig.enStride) {
-        when(strideRow.valid && fsm.channelCnt.valid && fire(4)){
+        when((strideRow.valid && fsm.channelCnt.valid && fire(4))){
             strideCol.clear
+        }
+        when(fsm.isActive(fsm.END)){
+            strideCol.clear
+            strideRow.clear
         }
         !strideCol.count.orR & !strideRow.count.orR
     } else {
@@ -133,7 +141,7 @@ case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingFixConfig)extends Compon
     //val dataValid = fsm.colCnt.count >= U(maxPoolingFixConfig.kernelSize - 1, log2Up(maxPoolingFixConfig.kernelSize) bits) &
     //  fsm.rowCnt.count >= U(maxPoolingFixConfig.kernelSize - 1, log2Up(maxPoolingFixConfig.kernelSize) bits)
     //修改为根据io.kernelNum来判断数据是否有效
-    val dataValid = fsm.colCnt.count > io.kernelNum & fsm.rowCnt.count > io.kernelNum & strideValid
+    val dataValid = dataValid1 & strideValid
     //这种情况下数据有效
     //数据无效的时候不需要下级模块结束 因此 io.MData.ready必须为1，让数据正常流出，io.MData.valid必须为0
     //VALID状态下，对于下级模块来说，VALID有效的条件为dataValid有效，并且第五级流水的数据真实有效。
@@ -299,5 +307,5 @@ case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingFixConfig)extends Compon
 }
 
 object MaxPoolingFix extends App {
-    SpinalVerilog(new MaxPoolingFix(MaxPoolingFixConfig(8, 8, 640, 10)))
+    SpinalVerilog(new MaxPooling(MaxPoolingConfig(8, 8, 640, 10, 1024)))
 }
