@@ -38,7 +38,11 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
 
         val last = out Bool()
         val softReset = in Bool()
-        val amendReg = in Bits (32 bits)
+        val leakyRelu_bias1 = in UInt (32 bits)
+        val leakyRelu_bias2 = in UInt (32 bits)
+        val leakyRelu_scale1 = in UInt (32 bits)
+        val leakyRelu_scale2 = in UInt (32 bits)
+
     }
     noIoPrefix()
     ClockDomain(clock = this.clockDomain.clock, reset = this.clockDomain.reset, softReset = io.softReset) {
@@ -250,8 +254,12 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         quan.io.shiftIn <> loadWeight.io.shiftRead.data
         quan.io.zeroIn <> io.quanZeroData
         //    quan.io.dataOut <> io.mFeatureData.payload
+
         quan.io.activationEn <> io.enActivation
-        quan.io.amendReg <> io.amendReg
+        quan.io.leakyRelu_bias1 <> io.leakyRelu_bias1
+        quan.io.leakyRelu_bias2 <> io.leakyRelu_bias2
+        quan.io.leakyRelu_scale1 <> io.leakyRelu_scale1
+        quan.io.leakyRelu_scale2 <> io.leakyRelu_scale2
 
         val stride = new Stride(convConfig)
         stride.io.enStride <> io.enStride

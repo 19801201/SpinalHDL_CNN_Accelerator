@@ -13,7 +13,7 @@ class Conv(convConfig: ConvConfig) extends Component {
         val sFeatureFirstLayerData = slave Stream UInt((if (imageType.dataType == imageType.rgb) 4 * convConfig.DATA_WIDTH else 1 * convConfig.DATA_WIDTH) bits)
         val mData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits)
         //        val start = in Bool()
-        val instruction = in Vec(Bits(32 bits), 5)
+        val instruction = in Vec(Bits(32 bits), 8)
         val control = in Bits (4 bits)
         val state = out Bits (4 bits)
 
@@ -71,9 +71,13 @@ class Conv(convConfig: ConvConfig) extends Component {
     convCompute.io.convType := computeInstructionReg(CONV_STATE.CONV_TYPE).resized
     convCompute.io.enStride := computeInstructionReg(CONV_STATE.EN_STRIDE).asBool
     convCompute.io.firstLayer := computeInstructionReg(CONV_STATE.FIRST_LAYER).asBool
-    convCompute.io.amendReg := computeInstructionReg(CONV_STATE.AMEND)
+    convCompute.io.leakyRelu_bias1 := computeInstructionReg(CONV_STATE.LEAKYRELU_BIAS1).asUInt.resized
+    convCompute.io.leakyRelu_bias2 := computeInstructionReg(CONV_STATE.LEAKYRELU_BIAS2).asUInt.resized
+    convCompute.io.leakyRelu_scale1 := computeInstructionReg(CONV_STATE.LEAKYRELU_SCALE1).asUInt.resized
+    convCompute.io.leakyRelu_scale2 := computeInstructionReg(CONV_STATE.LEAKYRELU_SCALE2).asUInt.resized
 
-//    convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
+
+    //    convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
         convCompute.io.weightNum := computeInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
 //    convCompute.io.quanNum := paraInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
         convCompute.io.quanNum := computeInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized

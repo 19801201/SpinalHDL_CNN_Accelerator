@@ -156,7 +156,7 @@ object Instruction {
     def ZERO1 = 191 downto 160
 
     val Reg0 = ("ROW_NUM_IN", ROW_NUM_IN.length, "COL_NUM_IN", COL_NUM_IN.length, "CHANNEL_IN", CHANNEL_IN.length)
-    val Reg1 = ("CHANNEL_IN1", CHANNEL_IN1.length, "ENPADDING", ENPADDING.length, "ZERODATA", ZERODATA, "ZERONUM", ZERONUM.length, "KERNELNUM",KERNELNUM.length, "STRIDENUM", STRIDENUM.length)
+    val Reg1 = ("CHANNEL_IN1", CHANNEL_IN1.length, "ENPADDING", ENPADDING.length, "ZERODATA", ZERODATA.length, "ZERONUM", ZERONUM.length, "KERNELNUM",KERNELNUM.length, "STRIDENUM", STRIDENUM.length)
     val Reg2 = ("SCALE", SCALE.length)
     val Reg3 = ("SCALE1", SCALE1.length)
     val Reg4 = ("ZERO", ZERO.length)

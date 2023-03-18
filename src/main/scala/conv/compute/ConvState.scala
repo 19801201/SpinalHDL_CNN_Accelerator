@@ -56,14 +56,24 @@ object CONV_STATE extends Area {
 
     def QUAN_NUM = 127 downto 112
 
-    def AMEND = 159 downto 128
+    def LEAKYRELU_BIAS1 = 159 downto 128
+
+    def LEAKYRELU_BIAS2 = 191 downto 160
+
+    def LEAKYRELU_SCALE1 = 223 downto 192
+
+    def LEAKYRELU_SCALE2 = 255 downto 224
 
     val Reg0 = ("ROW_NUM_IN", ROW_NUM_IN.length, "COL_NUM_IN", COL_NUM_IN.length, "CHANNEL_IN", CHANNEL_IN.length)
     val Reg1 = ("CHANNEL_OUT", CHANNEL_OUT.length, "EN_PADDING", EN_PADDING.length, "EN_ACTIVATION", EN_ACTIVATION.length, "Z1", Z1.length, "Z1_NUM", Z1_NUM.length, "Z3", Z3.length, "EN_STRIDE", EN_STRIDE.length)
     val Reg2 = ("CONV_TYPE", CONV_TYPE.length, "FIRST_LAYER", FIRST_LAYER.length)
     val Reg3 = ("WEIGHT_NUM", WEIGHT_NUM.length, "QUAN_NUM", QUAN_NUM.length)
-    val Reg4 = ("AMEND", AMEND.length)
-    val Reg = Seq(("Reg0", Reg0), ("Reg1", Reg1), ("Reg2", Reg2), ("Reg3", Reg3), ("Reg4", Reg4))
+    val Reg4 = ("LEAKYRELU_BIAS1", LEAKYRELU_BIAS1.length)
+    val Reg5 = ("LEAKYRELU_BIAS2", LEAKYRELU_BIAS2.length)
+    val Reg6 = ("LEAKYRELU_SCALE1", LEAKYRELU_SCALE1.length)
+    val Reg7 = ("LEAKYRELU_SCALE2", LEAKYRELU_SCALE2.length)
+
+    val Reg = Seq(("Reg0", Reg0), ("Reg1", Reg1), ("Reg2", Reg2), ("Reg3", Reg3), ("Reg4", Reg4), ("Reg5", Reg5), ("Reg6", Reg6), ("Reg7", Reg7))
 
 }
 
