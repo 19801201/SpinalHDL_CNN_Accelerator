@@ -39,6 +39,7 @@ case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingConfig)extends Component
         val sData = slave Stream (UInt(maxPoolingFixConfig.STREAM_DATA_WIDTH bits))
         val mData = master Stream (UInt(maxPoolingFixConfig.STREAM_DATA_WIDTH bits))
         val start = in Bool()
+        val last = out Bool()
         val channelIn = in UInt (maxPoolingFixConfig.CHANNEL_WIDTH bits)
         val rowNumIn = in UInt (maxPoolingFixConfig.FEATURE_WIDTH bits)
         val colNumIn = in UInt (maxPoolingFixConfig.FEATURE_WIDTH bits)
@@ -80,9 +81,8 @@ case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingConfig)extends Component
     // valid：数据是正常有效的，这时valid才可以为高。VALID状态下，只有行数大于等于Kernel Size - 1，列数也大于Kernel Size-1才 最后一级流水的输出才是有效的
     // END：系统恢复初始化的状态。
     val fsm = new StateMachine{
+        setEncoding(binaryOneHot)
         val IDLE = new State with EntryPoint
-        //        val WAIT_ROW = new State
-        //        val WAIT_COL = new State
         val VALID = new State
         val END = new State
 
@@ -112,6 +112,8 @@ case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingConfig)extends Component
               colCnt.clear
               rowCnt.clear
           }
+
+        io.last := channelCnt.valid & colCnt.valid & rowCnt.valid
     }
     /***********************stride舍弃模块模块*/
     val dataValid1 = fsm.colCnt.count > io.kernelNum & fsm.rowCnt.count > io.kernelNum
@@ -305,6 +307,7 @@ case class MaxPoolingFix(maxPoolingFixConfig: MaxPoolingConfig)extends Component
     }
     io.mData.payload := Delay(outPutData, 1, fire(4))
 }
+
 
 object MaxPoolingFix extends App {
     SpinalVerilog(new MaxPooling(MaxPoolingConfig(8, 8, 640, 10, 1024)))

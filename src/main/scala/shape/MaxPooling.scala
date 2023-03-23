@@ -74,6 +74,7 @@ class MaxPooling(maxPoolingConfig: MaxPoolingConfig) extends Component {
         val zeroDara = in Bits (maxPoolingConfig.DATA_WIDTH bits)
         val zeroNum = in UInt (maxPoolingConfig.CONFIG_DATA_WIDTH bits)
         val kernelNum = in UInt (maxPoolingConfig.CONFIG_DATA_WIDTH bits)
+        val last = out Bool()
         val strideNum = if(maxPoolingConfig.enStride) in UInt (maxPoolingConfig.CONFIG_DATA_WIDTH bits) else null
     }
     //需要一定的时间初始化。直接延迟一段时间再开始。
@@ -96,6 +97,7 @@ class MaxPooling(maxPoolingConfig: MaxPoolingConfig) extends Component {
     padding.io.rowNumOut <> maxPooling.io.rowNumIn
     padding.io.colNumOut <> maxPooling.io.colNumIn
     maxPooling.io.kernelNum <> io.kernelNum
+    io.last <> maxPooling.io.last
     if(maxPoolingConfig.enStride){
         maxPooling.io.strideNum <> io.strideNum
     }

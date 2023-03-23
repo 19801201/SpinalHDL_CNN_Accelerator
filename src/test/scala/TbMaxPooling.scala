@@ -19,7 +19,7 @@ class TbMaxPooling extends MaxPooling(MaxPoolingConfig(8, 8, 640, 10, 1024)) {
         clockDomain.forkStimulus(5)
 
         io.kernelNum #= 0 //(kernelNum + 2)*(kernelNum + 2)的MaxPooling
-        io.strideNum #= 1 //s = strideNum + 1
+        io.strideNum #= 0 //s = strideNum + 1
         io.zeroNum #= 0   //p = zeroNum
         io.enPadding #= false //开启/关键 padding
         io.zeroDara #= 0 //补的数值
@@ -49,17 +49,17 @@ class TbMaxPooling extends MaxPooling(MaxPoolingConfig(8, 8, 640, 10, 1024)) {
     }
 
     def out(dst_scala: String, dst: String): Unit = {
-
+        clockDomain.waitSampling()
         val testFile = new PrintWriter(new File(dst_scala))
-        val dstFile = Source. fromFile(dst).getLines().toArray
+        val dstFile = Source.fromFile(dst).getLines().toArray
         val total = dstFile.length
         var error = 0
         var iter = 0
         var i = 0
         while (i < dstFile.length) {
             clockDomain.waitSampling()
-            //io.mData.ready.randomize()
-            io.mData.ready #= true
+            //io.mData.ready #= true //不使用反压功能
+            io.mData.ready.randomize() //使用反压功能
             if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
                 i = i + 1
                 io.start #= false
@@ -83,7 +83,7 @@ class TbMaxPooling extends MaxPooling(MaxPoolingConfig(8, 8, 640, 10, 1024)) {
             println(s"ac\n")
         }
 
-        sleep(10000)
+        sleep(100)
         testFile.close()
         simSuccess()
     }
@@ -94,10 +94,11 @@ object TbMaxPooling extends App {
         defaultClockDomainFrequency = FixedFrequency(200 MHz),
         defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
     )
+    //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
     SimConfig.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
         dut.init
         dut.io.start #= true
-        val path = "F:\\dataCompare\\TbMaxPoolingFix\\k2p0s2"
+        val path = "F:\\dataCompare\\TbMaxPoolingFix\\k2p0s1"
         //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
         dut.in(path + "\\srcRaw.txt")
         dut.out(path + "\\dstResult.txt",path + "\\srcResult.txt")

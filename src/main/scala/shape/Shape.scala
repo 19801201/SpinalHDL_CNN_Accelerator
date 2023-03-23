@@ -98,7 +98,6 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     upSampling.io.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
     upSampling.io.fifoReady <> fifoReady
 
-
     //    val dataCount1 = RegNext((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt * instructionReg(Instruction.COL_NUM_IN).asUInt)
     val mulDataCount1 = Mul((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt.getWidth, instructionReg(Instruction.COL_NUM_IN).asUInt.getWidth, (instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt.getWidth + instructionReg(Instruction.COL_NUM_IN).asUInt.getWidth, MulConfig.unsigned, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "shapeCount1", true)
     mulDataCount1.io.A := (instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt
@@ -158,6 +157,11 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     val colOutCnt = WaCounter(channelOutCnt.valid && io.mData.fire, colOutTimes.getWidth, colOutTimes - 1)
     val rowOutCnt = WaCounter(channelOutCnt.valid && colOutCnt.valid && io.mData.fire, rowOutTimes.getWidth, rowOutTimes - 1)
     io.last := channelOutCnt.valid && colOutCnt.valid && rowOutCnt.valid
+    when(State.MAX_POOLING =/= shapeState.io.state){
+        io.last := channelOutCnt.valid && colOutCnt.valid && rowOutCnt.valid
+    } otherwise{
+        io.last := maxPooling.io.last
+    }
 
     when(fifo.io.availability > dataCount) {
         fifoReady := True
