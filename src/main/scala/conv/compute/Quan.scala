@@ -15,7 +15,10 @@ class Quan(convConfig: ConvConfig) extends Component {
         val zeroIn = in UInt (8 bits)
         val activationEn = in Bool()
         val dataOut = out UInt (convConfig.COMPUTE_CHANNEL_OUT_NUM * 8 bits)
-        val amendReg = in Bits (32 bits)
+        val leakyRelu_bias1 = in UInt (32 bits)
+        val leakyRelu_bias2 = in UInt (32 bits)
+        val leakyRelu_scale1 = in UInt (32 bits)
+        val leakyRelu_scale2 = in UInt (32 bits)
     }
     noIoPrefix()
     val bias = new Bias(convConfig)
@@ -37,7 +40,11 @@ class Quan(convConfig: ConvConfig) extends Component {
     val leakyRelu = new LeakyRelu(convConfig)
     leakyRelu.io.dataIn <> zero.io.dataOut
     leakyRelu.io.quanZero <> io.zeroIn
-    leakyRelu.io.amendReg <> io.amendReg
+    leakyRelu.io.bias1 <> io.leakyRelu_bias1
+    leakyRelu.io.bias2 <> io.leakyRelu_bias2
+    leakyRelu.io.scale1 <> io.leakyRelu_scale1
+    leakyRelu.io.scale2 <> io.leakyRelu_scale2
+
     when(io.activationEn) {
         io.dataOut.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices) <> leakyRelu.io.dataOut
     } otherwise {
