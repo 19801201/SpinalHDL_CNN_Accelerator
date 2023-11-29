@@ -32,7 +32,7 @@ class WaStreamFifoPipe[T <: Data](dataType: T, depth: Int) extends Component {
     }
     io.pop.valid := validHold | fireReg
     io.pop.payload := Mux(validHold, dataHold, dataReg)
-    fifo.io.pop.ready := io.pop.ready
+    fifo.io.pop.ready := io.pop.ready || (!io.pop.valid)
 
 }
 
