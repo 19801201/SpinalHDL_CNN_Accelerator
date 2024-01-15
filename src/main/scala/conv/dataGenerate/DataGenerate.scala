@@ -46,29 +46,6 @@ class DataGenerate(dataGenerateConfig: DataGenerateConfig) extends Component {
     featureConv11Convert.io.channelIn <> io.channelIn
     featureConv11Convert.io.colNumIn <> io.colNumIn
     featureConv11Convert.io.rowNumIn <> io.rowNumIn
-    //    when(io.convType === CONV_STATE.CONV33) {
-    //        padding.io.sData <> io.sData
-    //        padding.io.start <> io.start
-    //        featureGenerate.io.mData <> io.mData
-    //        featureWidthConvert.io.sData.valid := False
-    //        featureWidthConvert.io.sData.payload := 0
-    //        featureWidthConvert.io.mData.ready := False
-    //        featureWidthConvert.io.start := False
-    //
-    //    } elsewhen (io.convType === CONV_STATE.CONV11_8X) {
-    //        featureWidthConvert.io.sData <> io.sData
-    //        featureWidthConvert.io.mData <> io.mData
-    //        featureWidthConvert.io.start <> io.start
-    //
-    //        featureGenerate.io.mData.ready := False
-    //        padding.io.start <> False
-    //        padding.io.sData.valid := False
-    //        padding.io.sData.payload := 0
-    //    } elsewhen (io.convType === CONV_STATE.CONV11) {
-    //
-    //    } otherwise {
-    //
-    //    }
 
     switch(io.convType) {
         is(CONV_STATE.CONV33) {

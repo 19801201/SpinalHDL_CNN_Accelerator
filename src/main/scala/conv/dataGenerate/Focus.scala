@@ -77,9 +77,9 @@ class Focus(convConfig: ConvConfig) extends Component {
     fsm.computeEnd := columnCnt.valid && rowCnt.valid
 
     val mem = Mem(UInt(sDataWidth bits), convConfig.FEATURE)
-    val rowMemWriteAddr = WaCounter((!rowCnt.count(0)) && io.sData.fire, convConfig.FEATURE_WIDTH, io.colNumIn - 1)
+    val rowMemWriteAddr = WaCounter((!rowCnt.count(0)) && io.sData.fire, convConfig.FEATURE_WIDTH, io.colNumIn - 1)     // 偶数行写入mem
     mem.write(rowMemWriteAddr.count.resized, io.sData.payload.resize(sDataWidth), enable = (!rowCnt.count(0)) && io.sData.fire)
-    val rowMemReadAddr = WaCounter(rowCnt.count(0) && io.sData.fire, convConfig.FEATURE_WIDTH, io.colNumIn - 1)
+    val rowMemReadAddr = WaCounter(rowCnt.count(0) && io.sData.fire, convConfig.FEATURE_WIDTH, io.colNumIn - 1)         // 奇数行读出
 
 
     when(fsm.currentState === FocusEnum.IDLE) {
@@ -92,15 +92,6 @@ class Focus(convConfig: ConvConfig) extends Component {
     val pix1 = Reg(UInt(sDataWidth bits))
     val pix2 = Reg(UInt(sDataWidth bits))
 
-    //    val zeroWidth = if (imageType.dataType == imageType.rgb) {
-    //        4
-    //    } else if (imageType.dataType == imageType.gray) {
-    //        convConfig.COMPUTE_CHANNEL_IN_NUM - 4
-    //    } else {
-    //        assert(false, "imageType不正确");
-    //        0
-    //    }
-    //    val zero = UInt()
     io.sData.ready <> io.mData.ready
     when(fsm.currentState === FocusEnum.COMPUTE) {
         when(!rowCnt.count(0)) {
@@ -109,7 +100,6 @@ class Focus(convConfig: ConvConfig) extends Component {
             io.mData.payload := 0
             io.mData.valid := False
         } otherwise {
-
             when(!columnCnt.count(0)) {
                 io.mData.valid := False
                 io.mData.payload := 0

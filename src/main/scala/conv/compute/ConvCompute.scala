@@ -39,6 +39,8 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val last = out Bool()
         val softReset = in Bool()
         val amendReg = in Bits (32 bits)
+
+        val enFocus = in Bool()
     }
     noIoPrefix()
     ClockDomain(clock = this.clockDomain.clock, reset = this.clockDomain.reset, softReset = io.softReset) {
@@ -48,11 +50,11 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         }
 
         val channelIncr = new ChannelIncr(convConfig)
-        if (enFocus) {
+        if (useFocus) {
             val focus = new Focus(convConfig)
             focus.io.sData <> io.sFeatureFirstLayerData
             focus.io.mData <> channelIncr.io.sData
-            focus.io.start := io.startCu & io.firstLayer
+            focus.io.start := io.startCu & io.firstLayer & io.enFocus
             //因为focus会让图片尺寸缩小一半，而参数传进来的是卷积用的尺寸，所以进入focus的图片尺寸需要乘2
             focus.io.rowNumIn := (io.rowNumIn << 1).resized
             focus.io.colNumIn := (io.colNumIn << 1).resized
@@ -122,10 +124,6 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
                 if (convConfig.KERNEL_NUM == 9) {
                     fifo.dataIn <> dataGenerate.io.mData.mData(i)
                 }
-                //            else {
-                //                fifo.dataIn <> io.sFeatureData
-                //            }
-                //fifo.io.pop.valid <> computeCtrl.io.featureMemWriteValid
                 fifo.rd_en <> computeCtrl.io.featureMemWriteReady
                 fifo.sCount <> computeCtrl.io.sCount.resized
                 fifo.mCount <> computeCtrl.io.mCount.resized
@@ -133,7 +131,6 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
                 fifo.mReady <> mReady(i)
                 fifo
             }
-
             gen
         }
 

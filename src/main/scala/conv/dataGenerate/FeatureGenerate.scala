@@ -120,9 +120,9 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
             rdData(i) := mem.readSync(rdAddr)
             mem
         }
-
         gen()
     })
+
     val initCount = WaCounter(fsm.currentState === FeatureGenerateEnum.INIT, 3, 5)
     fsm.initEnd := initCount.valid
     val channelCnt = WaCounter(io.sData.fire, featureGenerateConfig.CHANNEL_WIDTH, channelTimes - 1)
@@ -139,9 +139,7 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
         io.sData.ready := False
     }
     val valid = Vec(Reg(Bool()) init False, featureGenerateConfig.KERNEL_NUM)
-    //    (0 until featureGenerateConfig.KERNEL_NUM).foreach(i => {
-    //        io.mData.mData(i).valid := Delay(valid(i) && fsm.currentState === FeatureGenerateEnum.WR, 2)
-    //    })
+
     io.mData.mData(0).valid := Delay(valid(0), 3)
     io.mData.mData(3).valid := Delay(valid(3), 3)
     io.mData.mData(6).valid := Delay(valid(6), 3)
@@ -151,7 +149,8 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     io.mData.mData(2).valid := Delay(valid(2), 1)
     io.mData.mData(5).valid := Delay(valid(5), 1)
     io.mData.mData(8).valid := Delay(valid(8), 1)
-    when(fsm.currentState === FeatureGenerateEnum.WR) {
+
+    when(fsm.currentState === FeatureGenerateEnum.WR && io.sData.fire) {
         when(columnCnt.count < io.colNumIn - 2) {
             valid(0) := True
             valid(3) := True
@@ -183,15 +182,6 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
         valid.map(_ := False)
     }
 
-    //    io.mData.mData(2).valid := Delay(io.sData.fire && fsm.currentState === FeatureGenerateEnum.WR, 3)
-    //    io.mData.mData(5).valid := Delay(io.sData.fire && fsm.currentState === FeatureGenerateEnum.WR, 3)
-    //    io.mData.mData(6).valid := Delay(io.sData.fire && fsm.currentState === FeatureGenerateEnum.WR, 3)
-    //
-    //    io.mData.mData(1).valid := Delay(io.sData.fire && fsm.currentState === FeatureGenerateEnum.WR, 3+channelTimes)
-    //    io.mData.mData(4).valid := Delay(io.sData.fire && fsm.currentState === FeatureGenerateEnum.WR, 3+channelTimes)
-    //    io.mData.mData(8).valid := Delay(io.sData.fire && fsm.currentState === FeatureGenerateEnum.WR, 3+channelTimes)
-
-    //    when()
     io.mData.mData(0).payload := RegNext(io.mData.mData(1).payload)
     io.mData.mData(1).payload := RegNext(io.mData.mData(2).payload)
     io.mData.mData(2).payload := RegNext(rdData(1))

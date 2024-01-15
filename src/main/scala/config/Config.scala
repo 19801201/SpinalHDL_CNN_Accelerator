@@ -18,7 +18,7 @@ object Config {
 
     val imageType = ImageType()
 
-    val enFocus = false
+    val useFocus = true
 
     val useXilinxDma = true
 

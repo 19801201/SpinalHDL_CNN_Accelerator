@@ -71,11 +71,10 @@ class Conv(convConfig: ConvConfig) extends Component {
     convCompute.io.convType := computeInstructionReg(CONV_STATE.CONV_TYPE).resized
     convCompute.io.enStride := computeInstructionReg(CONV_STATE.EN_STRIDE).asBool
     convCompute.io.firstLayer := computeInstructionReg(CONV_STATE.FIRST_LAYER).asBool
+    convCompute.io.enFocus := computeInstructionReg(CONV_STATE.EN_FOCUS).asBool
     convCompute.io.amendReg := computeInstructionReg(CONV_STATE.AMEND)
 
-//    convCompute.io.weightNum := paraInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
         convCompute.io.weightNum := computeInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
-//    convCompute.io.quanNum := paraInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
         convCompute.io.quanNum := computeInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized
 
 

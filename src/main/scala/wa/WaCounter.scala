@@ -25,4 +25,6 @@ class WaCounter(en: Bool, width: Int, cnt: UInt) extends Area {
         count := 0
         valid := False
     }
+
+    def last_valid = en && valid
 }

@@ -132,7 +132,7 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     val channelOutTimes = RegNext(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM))
     val channelInCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE, convConfig.CHANNEL_WIDTH, channelInTimes - 1)
     val channelOutCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.valid, convConfig.CHANNEL_WIDTH, channelOutTimes - 1)
-    val columnCnt = WaCounter(channelInCnt.valid && channelOutCnt.valid, convConfig.FEATURE_WIDTH, io.colNumIn - 1)
+    val columnCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.valid && channelOutCnt.valid, convConfig.FEATURE_WIDTH, io.colNumIn - 1)
     val rowCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.END, convConfig.FEATURE_WIDTH, io.rowNumIn - 1)
     when(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.IDLE) {
         channelInCnt.clear

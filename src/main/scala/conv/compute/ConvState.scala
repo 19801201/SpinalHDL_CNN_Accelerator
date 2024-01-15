@@ -52,6 +52,8 @@ object CONV_STATE extends Area {
 
     def FIRST_LAYER = 66 downto 66
 
+    def EN_FOCUS = 67 downto 67
+
     def WEIGHT_NUM = 111 downto 96
 
     def QUAN_NUM = 127 downto 112
@@ -60,7 +62,7 @@ object CONV_STATE extends Area {
 
     val Reg0 = ("ROW_NUM_IN", ROW_NUM_IN.length, "COL_NUM_IN", COL_NUM_IN.length, "CHANNEL_IN", CHANNEL_IN.length)
     val Reg1 = ("CHANNEL_OUT", CHANNEL_OUT.length, "EN_PADDING", EN_PADDING.length, "EN_ACTIVATION", EN_ACTIVATION.length, "Z1", Z1.length, "Z1_NUM", Z1_NUM.length, "Z3", Z3.length, "EN_STRIDE", EN_STRIDE.length)
-    val Reg2 = ("CONV_TYPE", CONV_TYPE.length, "FIRST_LAYER", FIRST_LAYER.length)
+    val Reg2 = ("CONV_TYPE", CONV_TYPE.length, "FIRST_LAYER", FIRST_LAYER.length, "EN_FOCUS", EN_FOCUS.length)
     val Reg3 = ("WEIGHT_NUM", WEIGHT_NUM.length, "QUAN_NUM", QUAN_NUM.length)
     val Reg4 = ("AMEND", AMEND.length)
     val Reg = Seq(("Reg0", Reg0), ("Reg1", Reg1), ("Reg2", Reg2), ("Reg3", Reg3), ("Reg4", Reg4))

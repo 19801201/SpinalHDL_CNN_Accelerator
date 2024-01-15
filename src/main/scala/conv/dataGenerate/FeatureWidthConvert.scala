@@ -82,7 +82,7 @@ class FeatureWidthConvert(featureGenerateConfig: FeatureGenerateConfig) extends 
     val dataCvt = StreamDataWidthConvert(S_DATA_WIDTH, M_DATA_WIDTH, "conv11DataCvt", true)
     val channelInTimes = RegNext(io.channelIn >> (log2Up(featureGenerateConfig.COMPUTE_CHANNEL_NUM) + 3))
     val channelCnt = WaCounter(dataCvt.io.mData.fire, featureGenerateConfig.CHANNEL_WIDTH, channelInTimes - 1)
-    val columnCnt = WaCounter(channelCnt.valid, featureGenerateConfig.FEATURE_WIDTH, io.colNumIn - 1)
+    val columnCnt = WaCounter(channelCnt.last_valid, featureGenerateConfig.FEATURE_WIDTH, io.colNumIn - 1)
     val rowCnt = WaCounter(fsm.currentState === FeatureWidthConvertEnum.END, featureGenerateConfig.FEATURE_WIDTH, io.rowNumIn - 1)
    // val mCount = RegNext(channelInTimes * io.colNumIn)
     fsm.fifoReady := io.mData.ready

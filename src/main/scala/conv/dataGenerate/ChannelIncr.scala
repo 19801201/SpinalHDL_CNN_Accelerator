@@ -9,7 +9,7 @@ import config.Config._
 
 class ChannelIncr(convConfig: ConvConfig) extends Component {
 
-    val sDataWidth = if (enFocus) {
+    val sDataWidth = if (useFocus) {
         4 * convConfig.DATA_WIDTH * (if (imageType.dataType == imageType.rgb) 3 else if (imageType.dataType == imageType.gray) 1 else {
             assert(false, "imageType不正确");
             0
