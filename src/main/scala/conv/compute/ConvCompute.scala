@@ -1,6 +1,6 @@
 package conv.compute
 
-import conv.dataGenerate.{ChannelIncr, DataGenerate, Focus}
+import conv.dataGenerate.{ChannelIncr, DataGenerate, Focus, Quant}
 import spinal.core._
 import spinal.lib._
 import wa.xip.math.DSP
@@ -41,6 +41,9 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         val amendReg = in Bits (32 bits)
 
         val enFocus = in Bool()
+
+        val quant_scale = in UInt(32 bits)
+        val quant_zp    = in UInt(32 bits)
     }
     noIoPrefix()
     ClockDomain(clock = this.clockDomain.clock, reset = this.clockDomain.reset, softReset = io.softReset) {
@@ -48,18 +51,23 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
         when(io.startPa) {
             convType := io.convType
         }
+        // 预处理量化
+        val quant = new Quant(convConfig)
+        quant.io.sData <> io.sFeatureFirstLayerData
+        quant.io.scale <> io.quant_scale
+        quant.io.zp    <> io.quant_zp
 
         val channelIncr = new ChannelIncr(convConfig)
         if (useFocus) {
             val focus = new Focus(convConfig)
-            focus.io.sData <> io.sFeatureFirstLayerData
+            focus.io.sData <> quant.io.mData
             focus.io.mData <> channelIncr.io.sData
             focus.io.start := io.startCu & io.firstLayer & io.enFocus
             //因为focus会让图片尺寸缩小一半，而参数传进来的是卷积用的尺寸，所以进入focus的图片尺寸需要乘2
             focus.io.rowNumIn := (io.rowNumIn << 1).resized
             focus.io.colNumIn := (io.colNumIn << 1).resized
         } else {
-            channelIncr.io.sData <> io.sFeatureFirstLayerData
+            channelIncr.io.sData <> quant.io.mData
         }
         val dataGenerate = new DataGenerate(convConfig.dataGenerateConfig)
         when(io.firstLayer) {

@@ -14,6 +14,7 @@ class Conv(convConfig: ConvConfig) extends Component {
         val mData = master Stream UInt(convConfig.FEATURE_M_DATA_WIDTH bits)
         //        val start = in Bool()
         val instruction = in Vec(Bits(32 bits), 5)
+        val quant_instruction = in Vec(Bits(32 bits), 2)
         val control = in Bits (4 bits)
         val state = out Bits (4 bits)
 
@@ -73,6 +74,8 @@ class Conv(convConfig: ConvConfig) extends Component {
     convCompute.io.firstLayer := computeInstructionReg(CONV_STATE.FIRST_LAYER).asBool
     convCompute.io.enFocus := computeInstructionReg(CONV_STATE.EN_FOCUS).asBool
     convCompute.io.amendReg := computeInstructionReg(CONV_STATE.AMEND)
+    convCompute.io.quant_zp := io.quant_instruction(0).asUInt
+    convCompute.io.quant_scale := io.quant_instruction(1).asUInt
 
         convCompute.io.weightNum := computeInstructionReg(CONV_STATE.WEIGHT_NUM).asUInt.resized
         convCompute.io.quanNum := computeInstructionReg(CONV_STATE.QUAN_NUM).asUInt.resized

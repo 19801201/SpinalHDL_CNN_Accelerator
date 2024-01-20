@@ -15,6 +15,7 @@ class Instruction extends Component {
         val regSData = slave(AxiLite4(log2Up(registerAddrSize), 32))
         val convInstruction = out Vec(Reg(Bits(32 bits)) init 0, CONV_STATE.Reg.length)
         val shapeInstruction = out Vec(Reg(Bits(32 bits)) init 0, shape.Instruction.Reg.length)
+        val quantInstruction = out Vec(Reg(Bits(32 bits)) init 0, 2)
     }
     noIoPrefix()
     AxiLite4SpecRenamer(io.regSData)
@@ -109,20 +110,10 @@ class Instruction extends Component {
         gen
     }
     }
-    //    val readAddrReg = bus.newReg(doc = "dma读地址")
-    //    val readAddr = readAddrReg.field(32 bits, WO, doc =  " dma读地址").setName("convFirstLayerReadAddr").asOutput()
-    //    val readLenReg = bus.newReg(doc = "dma读长度，不以字节为单位，实际长度")
-    //    val readLen = readLenReg.field(32 bits, WO, doc =  " dma读长度").setName("convFirstLayerReadLen").asOutput()
-    //    (0 until 2).foreach(i => {
-    //        val writeAddrReg = bus.newReg(doc = "dma写地址")
-    //        val writeAddr = writeAddrReg.field(32 bits, WO, doc = s(i) + " dma写地址").setName(s(i) + "writeAddr").asOutput()
-    //        if(i==1){
-    //            val writeAddrReg = bus.newReg(doc = "dma写地址")
-    //            val writeAddr = writeAddrReg.field(32 bits, WO, doc = s(i) + " dma写地址1").setName(s(i) + "writeAddr1").asOutput()
-    //        }
-    //        val readAddrReg = bus.newReg(doc = "dma读地址")
-    //        val readAddr = readAddrReg.field(32 bits, WO, doc = s(i) + " dma读地址").setName(s(i) + "readAddr").asOutput()
-    //    })
+    val quant_zp = bus.newReg(doc = "预处理量化zp")
+    io.quantInstruction(0) := quant_zp.field(Bits(32 bits), WO, doc = "QUANT_ZP_REG")
+    val quant_scale = bus.newReg(doc = "预处理量化scale")
+    io.quantInstruction(1) := quant_scale.field(Bits(32 bits), WO, doc = "QUANT_SCALE_REG")
 
     bus.accept(HtmlGenerator("Reg.html", "Npu"))
 
