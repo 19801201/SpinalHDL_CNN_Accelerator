@@ -1,5 +1,6 @@
 package shape
 
+import shape.post_pocessing.{Decode, PocessingConfig}
 import spinal.core._
 import spinal.lib._
 import wa.WaStream.{WaStreamDemux, WaStreamFifoPipe, WaStreamMux}
@@ -14,6 +15,7 @@ case class ShapeConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: Int, 
     val upSamplingConfig = UpSamplingConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH, ROW_MEM_DEPTH)
     val maxPoolingConfig = MaxPoolingConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH, ROW_MEM_DEPTH)
     val addConfig = AddConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM, FEATURE, CHANNEL_WIDTH, ROW_MEM_DEPTH)
+    val pocessingConfig = PocessingConfig(DATA_WIDTH, COMPUTE_CHANNEL_NUM)
 }
 
 
@@ -28,6 +30,11 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
         val introut = in Bool()
         val instruction = in Vec(Bits(32 bits), 6)
         val last = out Bool()
+
+        val w_addr = out UInt (12 bits)
+        val w_data = out UInt (64 bits)
+        val w_en = out Bool()
+        val finish = out Bool()
     }
     noIoPrefix()
 
@@ -36,7 +43,6 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     shapeState.io.dmaWriteValid <> io.dmaWriteValid
     shapeState.io.control <> io.control
     shapeState.io.state <> io.state
-
     shapeState.io.complete <> io.introut
 
     val start = shapeState.io.start.map(_.rise()).reduce(_ || _)
@@ -94,6 +100,16 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     upSampling.io.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
     upSampling.io.fifoReady <> fifoReady
 
+    val decode = new Decode(shapeConfig.pocessingConfig)
+    decode.io.start         <>  Delay(shapeState.io.start(Start.DECODE), 8)
+    decode.io.scale         <>  instructionReg(Instruction.SCALE).asUInt.resized
+    decode.io.zp            <>  instructionReg(Instruction.ZERO).asSInt.resized
+    decode.io.w_addr        <>  io.w_addr
+    decode.io.w_data        <>  io.w_data
+    decode.io.w_en          <>  io.w_en
+    decode.io.finish        <>  io.finish
+
+    shapeState.io.finish <> decode.io.finish
 
     //    val dataCount1 = RegNext((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt * instructionReg(Instruction.COL_NUM_IN).asUInt)
     val mulDataCount1 = Mul((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt.getWidth, instructionReg(Instruction.COL_NUM_IN).asUInt.getWidth, (instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt.getWidth + instructionReg(Instruction.COL_NUM_IN).asUInt.getWidth, MulConfig.unsigned, MulConfig.unsigned, 3, MulConfig.dsp, this.clockDomain, "shapeCount1", true)
@@ -153,7 +169,7 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     val channelOutCnt = WaCounter(io.mData.fire, channelOutTimes.getWidth, channelOutTimes - 1)
     val colOutCnt = WaCounter(channelOutCnt.valid && io.mData.fire, colOutTimes.getWidth, colOutTimes - 1)
     val rowOutCnt = WaCounter(channelOutCnt.valid && colOutCnt.valid && io.mData.fire, rowOutTimes.getWidth, rowOutTimes - 1)
-    io.last := channelOutCnt.valid && colOutCnt.valid && rowOutCnt.valid
+    io.last := channelOutCnt.valid && colOutCnt.valid && rowOutCnt.valid && io.mData.fire
 
     when(fifo.io.availability > dataCount) {
         fifoReady := True
@@ -162,10 +178,10 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     }
 
 
-    val s = Vec(Stream(UInt(io.sData(1).payload.getWidth bits)), 3)
+    val s = Vec(Stream(UInt(io.sData(1).payload.getWidth bits)), 4)
     s.foreach(a => a.ready := False)
-    Vec(concat.dataPort.sData, add.dataPort.sData, maxPooling.io.sData, upSampling.io.sData, split.io.sData) <> WaStreamDemux(Seq(State.CONCAT, State.ADD, State.MAX_POOLING, State.UP_SAMPLING, State.SPLIT), io.sData(0), shapeState.io.state)
-    Vec(concat.sData1, add.sData1, s(0), s(1), s(2)) <> WaStreamDemux(Seq(State.CONCAT, State.ADD, State.MAX_POOLING, State.UP_SAMPLING, State.SPLIT), io.sData(1), shapeState.io.state)
+    Vec(concat.dataPort.sData, add.dataPort.sData, maxPooling.io.sData, upSampling.io.sData, split.io.sData, decode.io.sData) <> WaStreamDemux(Seq(State.CONCAT, State.ADD, State.MAX_POOLING, State.UP_SAMPLING, State.SPLIT, State.DECODE), io.sData(0), shapeState.io.state)
+    Vec(concat.sData1, add.sData1, s(0), s(1), s(2), s(3)) <> WaStreamDemux(Seq(State.CONCAT, State.ADD, State.MAX_POOLING, State.UP_SAMPLING, State.SPLIT, State.DECODE), io.sData(1), shapeState.io.state)
 
     fifo.io.push <> WaStreamMux(Seq(State.CONCAT, State.ADD, State.MAX_POOLING, State.UP_SAMPLING, State.SPLIT), shapeState.io.state, Seq(concat.dataPort.mData, add.dataPort.mData, maxPooling.io.mData, upSampling.io.mData, split.io.mData))
 

@@ -2,58 +2,136 @@ import spinal.core.sim._
 import spinal.core._
 import shape._
 import TbCfg.Rom
-class TbShape extends Component{
-    val addr1 = UInt(log2Up(102400) bits)
-    val data1 = UInt(64 bits)
 
-    val addr2 = UInt(log2Up(102400) bits)
-    val data2 = UInt(64 bits)
+import java.io.{File, PrintWriter}
+import scala.collection.mutable.ArrayBuffer
+import scala.io.Source
+import scala.util.Random
 
-    val rom1 = new Rom(64,102400,"simData/add/dark2_CSP_Conv1.coe")
-    val rom2 = new Rom(64,102400,"simData/add/dark2_CSP_m_Conv2.coe")
+import scala.collection.mutable.ArrayBuffer
+case class TbShape() extends Shape(ShapeConfig(8, 8, 640, 12, 4096)){
+    def toHexString(width: Int, b: BigInt): String = {
+        var s = b.toString(16)
+        if (s.length < width) {
+            s = "0" * (width - s.length) + s
+        }
+        s
+    }
 
-    rom1.io.addr := addr1
-    rom1.io.data <> data1
+    def init = {
+        clockDomain.forkStimulus(5000)
+        io.sData(0).valid #= false
+        io.sData(1).valid #= false
+        io.sData(0).payload #= 0
+        io.sData(1).payload #= 0
+        io.control #= 0
+        io.introut #= false
+        io.instruction(0) #= 0
+        io.instruction(1) #= 0
+        io.instruction(2) #= 30461
+        io.instruction(3) #= 30461
+        io.instruction(4) #= 111
+        io.instruction(5) #= 111
+        io.mData.ready #= false
+        clockDomain.waitSampling(10)
+        io.control #= 6
+    }
 
-    rom2.io.addr := addr2
-    rom2.io.data <> data2
-}
-object TbShape extends App {
-//    SimConfig.withWave.compile(new Shape(ShapeConfig(8,8,416,10,1024))).doSim{
-//        dut=>
-//            dut.clockDomain.forkStimulus(5)
-//            dut.clockDomain.waitSampling(10)
-//            dut.io.instruction(0) #= 537198752
-//            dut.io.instruction(1) #= 0
-//            dut.io.instruction(2) #= 0
-//            dut.io.instruction(3) #= 0
-//            dut.io.instruction(4) #= 0
-//            dut.io.instruction(5) #= 0
-//            dut.io.sData(0).payload #= 0
-//            dut.io.sData(0).valid #= false
-//            dut.io.sData(1).payload #= 0
-//            dut.io.sData(1).valid #= false
-//            dut.io.mData.ready #= false
-//            dut.io.control #= 0
-//            dut.clockDomain.waitSampling(10)
-//            dut.io.mData.ready #= true
-//            dut.io.control #= 1
-//            dut.clockDomain.waitSampling()
-//            dut.io.control #= 0
-//            for (i <- 0 until 409600) {
-//                dut.io.sData(0).valid #= true
-//                dut.io.sData(0).payload #= i
-//                dut.clockDomain.waitSamplingWhere(dut.io.sData(0).valid.toBoolean && dut.io.sData(0).ready.toBoolean)
-////                if(i == 5){
-////                    dut.io.mData.ready #= false
-////                    dut.clockDomain.waitSampling(10)
-////                    dut.io.mData.ready #= true
-////                }
-//                println(i)
-//
+    def in(src: String): Unit = {
+        val random = new Random()
+        fork {
+            for (line <- Source.fromFile(src).getLines) {
+                io.sData(0).payload  #= BigInt(line.trim, 16)
+                io.sData(0).valid    #= true
+                clockDomain.waitSamplingWhere(io.sData(0).valid.toBoolean && io.sData(0).ready.toBoolean)
+                io.sData(0).valid    #= false
+                val randomInt = random.nextInt(25)
+                if(randomInt < 4)  clockDomain.waitSampling(randomInt)
+            }
+            // 完成信号
+            clockDomain.waitSamplingWhere(io.state.toBigInt == 15)
+            println("完成第一轮")
+            io.control #= 15    // 清中断
+            clockDomain.waitSamplingWhere(io.state.toBigInt == 0)
+            io.control #= 6     // 开启下一轮
+            for (line <- Source.fromFile(src).getLines) {
+                io.sData(0).payload #= BigInt(line.trim, 16)
+                io.sData(0).valid #= true
+                clockDomain.waitSamplingWhere(io.sData(0).valid.toBoolean && io.sData(0).ready.toBoolean)
+                io.sData(0).valid #= false
+                val randomInt = random.nextInt(25)
+                if (randomInt < 4) clockDomain.waitSampling(randomInt)
+            }
+        }
+    }
+
+    def out(dst_scala: String, dst: String): Unit = {
+        clockDomain.waitSampling()
+        val testFile = new PrintWriter(new File(dst_scala))
+        val dstFile = Source.fromFile(dst).getLines().toArray
+        val total = dstFile.length
+        var error = 0
+        var iter = 0
+        var i = 0
+        while (i < dstFile.length) {
+            clockDomain.waitSampling()
+//            io.mData.ready.randomize()
+//            if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
+//                val temp = dstFile(iter)
+//                val o = toHexString(8, io.mData.payload.toBigInt)
+//                i = i + 1
+//                if (!temp.equals(o)) {
+//                    error = error + 1
+//                    println("i:" + i)
+//                }
+//                if (iter % 1000 == 999) {
+//                    val errorP = error * 100.0 / total
+//                    println(s"total iter = $total current iter =  $iter :::  error count = $error error percentage = $errorP%")
+//                }
+//                testFile.write(o + "\r\n")
+//                iter = iter + 1
 //            }
-//            dut.io.sData(0).valid #= false
-//            dut.clockDomain.waitSampling(10)
-//    }
-    SpinalVerilog(new TbShape)
+            if (io.w_en.toBoolean) {
+                val temp = dstFile(iter)
+                val o = toHexString(16, io.w_data.toBigInt)
+                i = i + 1
+                if (!temp.equals(o)) {
+                    error = error + 1
+                    println("i:" + i)
+                }
+                if (iter % 100 == 99) {
+                    val errorP = error * 100.0 / total
+                    println(s"total iter = $total current iter =  $iter :::  error count = $error error percentage = $errorP%")
+                }
+                testFile.write(o + "\r\n")
+                iter = iter + 1
+            }
+        }
+        if (error > 0) {
+            println(s"error is $error\n")
+        } else {
+            println(s"ac\n")
+        }
+
+        clockDomain.waitSampling(1000)
+        testFile.close()
+        simSuccess()
+    }
+}
+
+
+object TbShape extends App {
+    val spinalConfig = new SpinalConfig(
+        defaultClockDomainFrequency = FixedFrequency(200 MHz),
+        defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
+    )
+    //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
+    SimConfig.withXilinxDevice("xc7vx690tffg1157-2").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbShape()).doSimUntilVoid { dut =>
+        dut.init
+        dut.clockDomain.waitSampling(100)
+        val path = "C:\\Users\\zengkaijian\\Desktop"
+
+        dut.in(path + "\\out_ALL.coe")
+        dut.out(path + "\\dst2.txt",path + "\\result.coe")
+    }
 }

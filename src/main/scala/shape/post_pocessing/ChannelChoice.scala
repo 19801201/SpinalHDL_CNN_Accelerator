@@ -96,30 +96,32 @@ class ChannelChoice(pocessingConfig: PocessingConfig) extends Component {
 
     val p3_colCnt = WaCounter(channelCnt.last_valid && fsm.currentState === ChannelChoiceEnum.P3, pocessingConfig.FEATURE_WIDTH, pocessingConfig.P3_ROW_COL_NUM - 1)
     val p3_rowCnt = WaCounter(p3_colCnt.last_valid, pocessingConfig.FEATURE_WIDTH, pocessingConfig.P3_ROW_COL_NUM - 1)
-    fsm.P3End := p3_colCnt.valid && p3_rowCnt.valid
+    fsm.P3End := p3_rowCnt.last_valid
 
     val p4_colCnt = WaCounter(channelCnt.last_valid && fsm.currentState === ChannelChoiceEnum.P4, pocessingConfig.FEATURE_WIDTH, pocessingConfig.P4_ROW_COL_NUM - 1)
     val p4_rowCnt = WaCounter(p4_colCnt.last_valid, pocessingConfig.FEATURE_WIDTH, pocessingConfig.P4_ROW_COL_NUM - 1)
-    fsm.P4End := p4_colCnt.valid && p4_rowCnt.valid
+    fsm.P4End := p4_rowCnt.last_valid
 
     val p5_colCnt = WaCounter(channelCnt.last_valid && fsm.currentState === ChannelChoiceEnum.P5, pocessingConfig.FEATURE_WIDTH, pocessingConfig.P5_ROW_COL_NUM - 1)
     val p5_rowCnt = WaCounter(p5_colCnt.last_valid, pocessingConfig.FEATURE_WIDTH, pocessingConfig.P5_ROW_COL_NUM - 1)
-    fsm.P5End := p5_colCnt.valid && p5_rowCnt.valid
+    fsm.P5End := p5_rowCnt.last_valid
 
     val reg_obj_cls_cat = Reg(UInt(pocessingConfig.FLOW_DATA_WIDTH bits)) init (0)
 
     when(channelCnt.count === 0) {
         reg_obj_cls_cat(31 downto (0)) := io.sData.payload(31 downto (0))
-    } elsewhen (channelCnt.count === 1) {
+    } elsewhen (channelCnt.count === 2) {
         reg_obj_cls_cat(39 downto (32)) := io.sData.payload(7 downto (0))
-    } otherwise{
+    } elsewhen (channelCnt.count === 4){
         reg_obj_cls_cat(47 downto (40)) := io.sData.payload(7 downto (0))
-    }
+    } otherwise({
+        reg_obj_cls_cat := reg_obj_cls_cat
+    })
 
     io.reg_data := reg_obj_cls_cat(31 downto (0))
     io.obj_data := reg_obj_cls_cat(39 downto (32))
     io.cls_data := reg_obj_cls_cat(47 downto (40))
-    when(Delay(channelCnt.valid, 1)) {
+    when(Delay(channelCnt.last_valid, 1)) {
         io.mData_valid.set()
     } otherwise ({
         io.mData_valid.clear()

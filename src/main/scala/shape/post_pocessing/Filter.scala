@@ -105,22 +105,22 @@ class Filter(pocessingConfig: PocessingConfig) extends Component {
 
     val p3_colCnt = WaCounter(io.sData_valid && fsm.currentState === FilterEnum.P3, pocessingConfig.FEATURE_WIDTH, pocessingConfig.P3_ROW_COL_NUM - 1)
     val p3_rowCnt = WaCounter(p3_colCnt.last_valid, pocessingConfig.FEATURE_WIDTH, pocessingConfig.P3_ROW_COL_NUM - 1)
-    fsm.P3End := p3_colCnt.valid && p3_rowCnt.valid
+    fsm.P3End := p3_rowCnt.last_valid
 
     val p4_colCnt = WaCounter(io.sData_valid && fsm.currentState === FilterEnum.P4, pocessingConfig.FEATURE_WIDTH, pocessingConfig.P4_ROW_COL_NUM - 1)
     val p4_rowCnt = WaCounter(p4_colCnt.last_valid, pocessingConfig.FEATURE_WIDTH, pocessingConfig.P4_ROW_COL_NUM - 1)
-    fsm.P4End := p4_colCnt.valid && p4_rowCnt.valid
+    fsm.P4End := p4_rowCnt.last_valid
 
     val p5_colCnt = WaCounter(io.sData_valid && fsm.currentState === FilterEnum.P5, pocessingConfig.FEATURE_WIDTH, pocessingConfig.P5_ROW_COL_NUM - 1)
     val p5_rowCnt = WaCounter(p5_colCnt.last_valid, pocessingConfig.FEATURE_WIDTH, pocessingConfig.P5_ROW_COL_NUM - 1)
-    fsm.P5End := p5_colCnt.valid && p5_rowCnt.valid
+    fsm.P5End := p5_rowCnt.last_valid
 
     val send_cnt = WaCounter(fsm.currentState === FilterEnum.SEND_CONF, 6, pocessingConfig.MEM_DEPTH - 1)
     fsm.SEND_CONF_END := send_cnt.valid
 
     val obj_data = Reg(UInt(64 bits)) init 0
     when(io.sData_valid){
-        obj_data := obj_data(55 downto(0)) @@ io.s_obj_data_quan
+        obj_data :=  io.s_obj_data_quan @@ obj_data(63 downto(8))
     }otherwise({
         obj_data := obj_data
     })
@@ -140,12 +140,12 @@ class Filter(pocessingConfig: PocessingConfig) extends Component {
 
     val conf_data = UInt(64 bits)
     val conf_fifo = StreamFifo(UInt(64 bits), pocessingConfig.MEM_DEPTH)
-    conf_fifo.io.push.valid := conf_mask
+    conf_fifo.io.push.valid := conf_mask && Delay(io.sData_valid, 4)
     conf_fifo.io.push.payload := Delay(io.s_reg_data @@ io.s_obj_data_quan @@ io.s_cls_data_quan @@ io.s_x @@ io.s_y @@ io.s_z, 4)
     conf_fifo.io.pop.ready := fsm.currentState === FilterEnum.SEND_CONF
     conf_data := Mux(conf_fifo.io.pop.valid, conf_fifo.io.pop.payload, U(0).resized)
 
-    when(fsm.currentState === FilterEnum.P3){
+    when(Delay(fsm.currentState === FilterEnum.P3, 1)){
         io.w_data := obj_data
     }elsewhen(fsm.currentState === FilterEnum.SEND_CONF){
         io.w_data := conf_data
@@ -154,7 +154,7 @@ class Filter(pocessingConfig: PocessingConfig) extends Component {
     })
 
     val send_addr = Reg(UInt(12 bits)) init 0
-    when(io.sData_valid && p3_colCnt.count(2 downto (0)) === 7) {
+    when(Delay(io.sData_valid && p3_colCnt.count(2 downto (0)) === 7, 1)) {
         send_addr := send_addr + 1
         io.w_en := True
     } elsewhen (fsm.currentState === FilterEnum.SEND_CONF) {
