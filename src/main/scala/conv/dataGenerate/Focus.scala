@@ -93,7 +93,7 @@ class Focus(convConfig: ConvConfig) extends Component {
     val pix2 = Reg(UInt(sDataWidth bits))
 
     io.sData.ready <> io.mData.ready
-    when(fsm.currentState === FocusEnum.COMPUTE) {
+    when(fsm.currentState === FocusEnum.COMPUTE && io.sData.fire) {
         when(!rowCnt.count(0)) {
             pix1 := 0
             pix2 := 0
@@ -106,12 +106,11 @@ class Focus(convConfig: ConvConfig) extends Component {
                 pix1 := mem.readAsync(rowMemReadAddr.count.resized)
                 pix2 := io.sData.payload.resized
             } otherwise {
-                io.mData.valid := io.sData.fire
+                io.mData.valid := True
                 io.mData.payload := io.sData.payload.resize(sDataWidth) @@ mem.readAsync(rowMemReadAddr.count.resized) @@ pix2 @@ pix1
             }
         }
     } otherwise {
-        io.sData.ready := False
         io.mData.valid := False
         io.mData.payload := 0
     }

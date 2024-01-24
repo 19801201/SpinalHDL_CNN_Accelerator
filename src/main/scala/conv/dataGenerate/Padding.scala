@@ -158,7 +158,7 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
 
     val zeroValid = Bool()
     when(fsm.currentState === PaddingEnum.CENTER) {
-        fifo.io.push.valid := io.sData.valid
+        fifo.io.push.valid := io.sData.fire
         fifo.io.push.payload := io.sData.payload
     } otherwise {
         fifo.io.push.valid := zeroValid

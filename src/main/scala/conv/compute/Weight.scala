@@ -229,12 +229,12 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
         }
     }
     val copyWeightCnt = WaCounter(fsm.currentState === LoadWeightEnum.COPY_WEIGHT && io.sData.fire, log2Up(convConfig.WEIGHT_S_DATA_DEPTH), io.weightNum - 1)
-    val copyWeightTimes = WaCounter(copyWeightCnt.valid, convConfig.KERNEL_NUM.toBinaryString.length, convConfig.KERNEL_NUM - 1)
+    val copyWeightTimes = WaCounter(copyWeightCnt.last_valid, convConfig.KERNEL_NUM.toBinaryString.length, convConfig.KERNEL_NUM - 1)
 
     val channelInCnt = WaCounter(fsm.currentState === LoadWeightEnum.COPY_WEIGHT && io.sData.fire, channelInTimes.getWidth, channelInTimes - 1)
     val computeChannelOut = WaCounter(fsm.currentState === LoadWeightEnum.COPY_WEIGHT && io.sData.fire, log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM), convConfig.COMPUTE_CHANNEL_OUT_NUM - 1)
-    val times = WaCounter(computeChannelOut.valid, 4, copyTimes)
-    val channelOutCnt = WaCounter(channelInCnt.valid, channelOutTimes.getWidth, channelOutTimes - 1)
+    val times = WaCounter(computeChannelOut.last_valid, 4, copyTimes)
+    val channelOutCnt = WaCounter(channelInCnt.last_valid, channelOutTimes.getWidth, channelOutTimes - 1)
     when(fsm.currentState === LoadWeightEnum.IDLE) {
         channelInCnt.clear
         computeChannelOut.clear
@@ -242,11 +242,11 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
         channelOutCnt.clear
     }
     when(io.convType === CONV_STATE.CONV33) {
-        fsm.copyWeightEnd := copyWeightCnt.valid && copyWeightTimes.valid
+        fsm.copyWeightEnd := copyWeightTimes.last_valid
     } elsewhen (io.convType === CONV_STATE.CONV11_8X) {
-        fsm.copyWeightEnd := channelInCnt.valid && channelOutCnt.valid
+        fsm.copyWeightEnd := channelOutCnt.last_valid
     } elsewhen (io.convType === CONV_STATE.CONV11) {
-        fsm.copyWeightEnd := copyWeightCnt.valid
+        fsm.copyWeightEnd := copyWeightCnt.last_valid
     } otherwise {
         fsm.copyWeightEnd := False
     }
@@ -352,11 +352,11 @@ case class LoadWeight(convConfig: ConvConfig) extends Component {
     }
 
     val copyBias = copyQuan(fsm.currentState === LoadWeightEnum.COPY_BIAS && io.sData.fire, fsm.currentState === LoadWeightEnum.COPY_BIAS && io.sData.fire, io.sData.payload, io.biasRead.addr, io.biasRead.data, this.clockDomain)
-    fsm.copyBiasEnd := copyBias.copyCnt.valid
+    fsm.copyBiasEnd := copyBias.copyCnt.last_valid
     val copyScale = copyQuan(fsm.currentState === LoadWeightEnum.COPY_SCALE && io.sData.fire, fsm.currentState === LoadWeightEnum.COPY_SCALE && io.sData.fire, io.sData.payload, io.scaleRead.addr, io.scaleRead.data, this.clockDomain)
-    fsm.copyScaleEnd := copyScale.copyCnt.valid
+    fsm.copyScaleEnd := copyScale.copyCnt.last_valid
     val copyShift = copyQuan(fsm.currentState === LoadWeightEnum.COPY_SHIFT && io.sData.fire, fsm.currentState === LoadWeightEnum.COPY_SHIFT && io.sData.fire, io.sData.payload, io.shiftRead.addr, io.shiftRead.data, this.clockDomain)
-    fsm.copyShiftEnd := copyShift.copyCnt.valid
+    fsm.copyShiftEnd := copyShift.copyCnt.last_valid
     setClear(io.copyWeightDone, fsm.currentState === LoadWeightEnum.COPY_SHIFT && fsm.nextState === LoadWeightEnum.IDLE)
 
 }

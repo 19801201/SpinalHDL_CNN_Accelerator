@@ -129,9 +129,9 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     val columnCnt = WaCounter(channelCnt.valid && io.sData.fire, featureGenerateConfig.FEATURE_WIDTH, io.colNumIn - 1)
     val rowCnt = WaCounter(fsm.currentState === FeatureGenerateEnum.END, featureGenerateConfig.FEATURE_WIDTH, io.rowNumIn - 1)
 
-    fsm.waitEnd := channelCnt.valid && columnCnt.valid
-    fsm.wrEnd := channelCnt.valid && columnCnt.valid
-    fsm.endEnd := rowCnt.valid
+    fsm.waitEnd := columnCnt.last_valid
+    fsm.wrEnd := columnCnt.last_valid
+    fsm.endEnd := rowCnt.last_valid
     fsm.wait2 := rowCnt.count < 1
     when(fsm.currentState === FeatureGenerateEnum.WAIT || fsm.currentState === FeatureGenerateEnum.WR) {
         io.sData.ready := True
