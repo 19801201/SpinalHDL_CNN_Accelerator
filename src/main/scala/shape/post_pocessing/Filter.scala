@@ -118,11 +118,11 @@ class Filter(pocessingConfig: PocessingConfig) extends Component {
     val send_cnt = WaCounter(fsm.currentState === FilterEnum.SEND_CONF, 6, pocessingConfig.MEM_DEPTH - 1)
     fsm.SEND_CONF_END := send_cnt.valid
 
-    val obj_data = Reg(UInt(64 bits)) init 0
+    val cls_data = Reg(UInt(64 bits)) init 0
     when(io.sData_valid){
-        obj_data :=  io.s_obj_data_quan @@ obj_data(63 downto(8))
+        cls_data :=  io.s_cls_data_quan @@ cls_data(63 downto(8))
     }otherwise({
-        obj_data := obj_data
+        cls_data := cls_data
     })
 
     val obj_cls_mul_result = UInt(64 bits)
@@ -146,7 +146,7 @@ class Filter(pocessingConfig: PocessingConfig) extends Component {
     conf_data := Mux(conf_fifo.io.pop.valid, conf_fifo.io.pop.payload, U(0).resized)
 
     when(Delay(fsm.currentState === FilterEnum.P3, 1)){
-        io.w_data := obj_data
+        io.w_data := cls_data
     }elsewhen(fsm.currentState === FilterEnum.SEND_CONF){
         io.w_data := conf_data
     }otherwise({
