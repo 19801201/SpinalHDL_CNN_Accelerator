@@ -129,7 +129,7 @@ object TbShape extends App {
     SimConfig.withXilinxDevice("xc7vx690tffg1157-2").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbShape()).doSimUntilVoid { dut =>
         dut.init
         dut.clockDomain.waitSampling(100)
-        val path = "C:\\Users\\zengkaijian\\Desktop"
+        val path = "src/test/data"
 
         dut.in(path + "\\out_ALL.coe")
         dut.out(path + "\\dst2.txt",path + "\\result.coe")

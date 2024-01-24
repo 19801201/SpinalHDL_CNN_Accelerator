@@ -74,7 +74,7 @@ class Focus(convConfig: ConvConfig) extends Component {
     val columnCnt = WaCounter(io.sData.fire, convConfig.FEATURE_WIDTH, io.colNumIn - 1)
     val rowCnt = WaCounter(columnCnt.valid && io.sData.fire, convConfig.FEATURE_WIDTH, io.rowNumIn - 1)
 
-    fsm.computeEnd := columnCnt.valid && rowCnt.valid
+    fsm.computeEnd := rowCnt.last_valid
 
     val mem = Mem(UInt(sDataWidth bits), convConfig.FEATURE)
     val rowMemWriteAddr = WaCounter((!rowCnt.count(0)) && io.sData.fire, convConfig.FEATURE_WIDTH, io.colNumIn - 1)     // 偶数行写入mem
