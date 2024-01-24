@@ -6,6 +6,7 @@ import spinal.lib.bus.amba4.axi._
 import spinal.lib.bus.amba4.axilite._
 import config.Config._
 import conv.compute._
+import conv.dataGenerate.dataWait
 import shape._
 import wa.dma.{DmaConfig, DmaRead, DmaWrite}
 
@@ -48,10 +49,10 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
             val convMLast = out Bool() setName ("convMLast")
             val shapeMLast = out Bool() setName ("shapeMLast")
 
-            val w_addr  = out UInt (12 bits)
-            val w_data  = out UInt (64 bits)
-            val w_en    = out Bool()
-            val finish  = out Bool()
+            val w_addr  = out UInt (12 bits) setName ("bram_w_addr")
+            val w_data  = out UInt (64 bits) setName ("bram_w_data")
+            val w_en    = out Bool()    setName ("bram_w_en")
+            val finish  = out Bool()    setName ("bram_finish")
         }
         noIoPrefix()
 

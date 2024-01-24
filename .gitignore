@@ -8,3 +8,6 @@ simWorkspace
 tmp
 verilog
 /tmp/job_1/
+/test.wdb
+/.Xil/
+/xsim.dir/

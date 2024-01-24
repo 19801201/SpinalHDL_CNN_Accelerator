@@ -38,7 +38,7 @@ class Quant(convConfig: ConvConfig) extends Component {
 
     val quan_fifo = StreamFifo(UInt(8 bits), 20)
     quan_fifo.io.push.payload <> quan_result
-    quan_fifo.io.push.valid <> Delay(io.sData.fire, 5)
+    quan_fifo.io.push.valid <> Delay(io.sData.fire, 5, init = False)
 
     io.sData.ready := quan_fifo.io.availability > 5
     io.mData <> quan_fifo.io.pop
