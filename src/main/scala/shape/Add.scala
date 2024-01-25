@@ -3,7 +3,6 @@ package shape
 import spinal.core._
 import spinal.lib._
 import wa.WaCounter
-import wa.WaStream.WaStreamFifoPipe
 import wa.xip.math.{AddSub, AddSubConfig, Mul, MulConfig}
 
 case class AddConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: Int, CHANNEL_WIDTH: Int, MEM_DEPTH: Int) {
@@ -13,7 +12,7 @@ case class AddConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: Int, CH
 }
 
 object AddMachineEnum extends SpinalEnum(defaultEncoding = binaryOneHot) {
-    val IDLE, INIT, FIFO_READY, DATA_READY, COMPUTE, LAST = newElement
+    val IDLE, INIT, FIFO_READY, COMPUTE, LAST = newElement
 }
 
 case class AddStateMachine(start: Bool) extends Area {
@@ -43,18 +42,11 @@ case class AddStateMachine(start: Bool) extends Area {
                 nextState := AddMachineEnum.INIT
             }
         }
-        is(AddMachineEnum.FIFO_READY) {
+        is(AddMachineEnum.FIFO_READY) {//不在等待数据完成
             when(fifoReady) {
-                nextState := AddMachineEnum.DATA_READY
-            } otherwise {
-                nextState := AddMachineEnum.FIFO_READY
-            }
-        }
-        is(AddMachineEnum.DATA_READY) {
-            when(dataReady) {
                 nextState := AddMachineEnum.COMPUTE
             } otherwise {
-                nextState := AddMachineEnum.DATA_READY
+                nextState := AddMachineEnum.FIFO_READY
             }
         }
         is(AddMachineEnum.COMPUTE) {
@@ -91,45 +83,27 @@ class Add(addConfig: AddConfig) extends Component {
     val initCount = WaCounter(fsm.currentState === AddMachineEnum.INIT, 3, 5)
     fsm.initEnd := initCount.valid
 
-//    val mem1 = WaStreamFifoPipe(UInt(addConfig.STREAM_DATA_WIDTH bits), addConfig.MEM_DEPTH)
-//    mem1.fifo.logic.ram.addAttribute("ram_style = \"block\"")
-//    val mem2 = WaStreamFifoPipe(UInt(addConfig.STREAM_DATA_WIDTH bits), addConfig.MEM_DEPTH)
-//    mem2.fifo.logic.ram.addAttribute("ram_style = \"block\"")
-
-    val mem1 = StreamFifo(UInt(addConfig.STREAM_DATA_WIDTH bits), addConfig.MEM_DEPTH)
-    mem1.logic.ram.addAttribute("ram_style = \"block\"")
-    val mem2 = StreamFifo(UInt(addConfig.STREAM_DATA_WIDTH bits), addConfig.MEM_DEPTH)
-    mem2.logic.ram.addAttribute("ram_style = \"block\"")
-
     val channelTimes = dataPort.channelIn >> log2Up(addConfig.COMPUTE_CHANNEL_NUM)
-    val cnt = RegNext(channelTimes * dataPort.colNumIn)
-    val channelCnt = WaCounter(mem1.io.pop.fire, addConfig.CHANNEL_WIDTH, channelTimes - 1)
-    val columnCnt = WaCounter(channelCnt.valid && mem1.io.pop.fire, addConfig.FEATURE_WIDTH, dataPort.colNumIn - 1)
+    val channelCnt = WaCounter(dataPort.sData.fire, addConfig.CHANNEL_WIDTH, channelTimes - 1)
+    val columnCnt = WaCounter(channelCnt.valid && dataPort.sData.fire, addConfig.FEATURE_WIDTH, dataPort.colNumIn - 1)
     val rowCnt = WaCounter(fsm.currentState === AddMachineEnum.LAST, addConfig.FEATURE_WIDTH, dataPort.rowNumIn - 1)
 
-    fsm.computeEnd := channelCnt.valid && columnCnt.valid
+    dataPort.sData.ready := fsm.currentState === AddMachineEnum.COMPUTE && sData1.valid
+    sData1.ready := fsm.currentState === AddMachineEnum.COMPUTE && dataPort.sData.valid
+
+    fsm.computeEnd := channelCnt.valid && columnCnt.valid && dataPort.sData.fire
     fsm.last := rowCnt.valid
 
-    mem1.io.push <> dataPort.sData
-    mem2.io.push <> sData1
-
-    when(mem1.io.occupancy >= cnt && mem2.io.occupancy >= cnt) {
-        fsm.dataReady := True
-    } otherwise {
-        fsm.dataReady := False
-    }
-    when(fsm.currentState === AddMachineEnum.COMPUTE) {
-        mem1.io.pop.ready := True
-        mem2.io.pop.ready := True
-    } otherwise {
-        mem1.io.pop.ready := False
-        mem2.io.pop.ready := False
+    when(fsm.currentState === AddMachineEnum.IDLE){
+        channelCnt.clear
+        columnCnt.clear
+        rowCnt.clear
     }
 
     val add1 = AddAdd(addConfig)
     val add2 = AddAdd(addConfig)
-    add1.io.dataIn <> mem1.io.pop.payload.asSInt
-    add2.io.dataIn <> mem2.io.pop.payload.asSInt
+    add1.io.dataIn <> dataPort.sData.payload.asSInt
+    add2.io.dataIn <> sData1.payload.asSInt
     add1.io.zero <> zero
     add2.io.zero <> zero1
 
@@ -173,7 +147,7 @@ class Add(addConfig: AddConfig) extends Component {
         dataPort.mData.payload.subdivideIn(addConfig.COMPUTE_CHANNEL_NUM slices)(i) := temp8
     })
 
-    dataPort.mData.valid := Delay(mem1.io.pop.fire, 9 + 6)
+    dataPort.mData.valid := Delay(dataPort.sData.fire, 9 + 6)
 }
 
 case class AddAdd(addConfig: AddConfig) extends Component {

@@ -12,13 +12,6 @@ case class UpSamplingConfig(DATA_WIDTH: Int, COMPUTE_CHANNEL_NUM: Int, FEATURE: 
 }
 
 class UpSampling(upSamplingConfig: UpSamplingConfig) extends Component {
-    //    val io = new Bundle{
-    //        val sData = slave Stream UInt(upSamplingConfig.STREAM_DATA_WIDTH bits)
-    //        val mData = master Stream UInt(upSamplingConfig.STREAM_DATA_WIDTH bits)
-    //        val rowNumIn = in UInt (upSamplingConfig.FEATURE_WIDTH bits)
-    //        val colNumIn = in UInt (upSamplingConfig.FEATURE_WIDTH bits)
-    //        val channelIn = in UInt (upSamplingConfig.CHANNEL_WIDTH bits)
-    //    }
     val io = ShapePort(upSamplingConfig.STREAM_DATA_WIDTH, upSamplingConfig.FEATURE_WIDTH, upSamplingConfig.CHANNEL_WIDTH)
     noIoPrefix()
 
@@ -39,7 +32,7 @@ class UpSampling(upSamplingConfig: UpSamplingConfig) extends Component {
     when(computeChannelTimes === 1) {
         fsm.computeEnd := channelCnt.valid && columnCnt.valid.rise()
     } otherwise {
-        fsm.computeEnd := channelCnt.valid && columnCnt.valid
+        fsm.computeEnd := columnCnt.last_valid
     }
     fsm.last := RegNext(rowCnt.valid)
 
@@ -47,8 +40,6 @@ class UpSampling(upSamplingConfig: UpSamplingConfig) extends Component {
     dataTemp.fifo.logic.ram.addAttribute("ram_style = \"block\"")
 
     val channelMem = WaStreamFifoPipe(UInt(upSamplingConfig.STREAM_DATA_WIDTH bits), upSamplingConfig.channelMemDepth)
-
-    //    when(fsm.currentState === ShapeStateMachineEnum.COMPUTE) {
 
     when(!rowCnt.count(0)) {
         when(!columnCnt.count(0)) {
@@ -93,17 +84,12 @@ class UpSampling(upSamplingConfig: UpSamplingConfig) extends Component {
     when(fsm.currentState === ShapeStateMachineEnum.IDLE || fsm.currentState === ShapeStateMachineEnum.INIT) {
         io.sData.ready := False
     }
-    //    } otherwise {
-    //        io.sData.ready := False
-    //        channelMem.io.push.valid := False
-    //        channelMem.io.push.payload := 0
-    //        channelMem.io.pop.ready := False
-    //        dataTemp.io.push.valid := False
-    //        dataTemp.io.push.payload := 0
-    //        dataTemp.io.pop.ready := False
-    //        io.mData.payload := 0
-    //        io.mData.valid := False
-    //    }
+
+    when(fsm.currentState === ShapeStateMachineEnum.IDLE){
+        channelCnt.clear
+        columnCnt.clear
+        rowCnt.clear
+    }
 
 }
 

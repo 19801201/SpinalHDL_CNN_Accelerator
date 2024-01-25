@@ -37,8 +37,14 @@ class Concat(concatConfig: ConcatConfig) extends Component {
     val initCount = WaCounter(fsm.currentState === ShapeStateMachineEnum.INIT, 3, 5)
     fsm.initEnd := initCount.valid
     fsm.fifoReady := dataPort.fifoReady
-    fsm.computeEnd := channelCnt.valid && columnCnt.valid
+    fsm.computeEnd := channelCnt.valid && columnCnt.valid && dataPort.sData.fire
     fsm.last := rowCnt.valid
+
+    when(fsm.currentState === ShapeStateMachineEnum.IDLE) {
+        channelCnt.clear
+        columnCnt.clear
+        rowCnt.clear
+    }
 
     when(fsm.currentState === ShapeStateMachineEnum.COMPUTE && dataPort.mData.ready) {
         when(channelCnt.count < channelTimes0) {
