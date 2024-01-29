@@ -53,6 +53,9 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
             val w_data  = out UInt (64 bits) setName ("bram_w_data")
             val w_en    = out Bool()    setName ("bram_w_en")
             val finish  = out Bool()    setName ("bram_finish")
+
+            val dsp_zp = out Bits(32 bits)      setName("dsp_zp")
+            val dsp_scale = out Bits(32 bits)   setName("dsp_scale")
         }
         noIoPrefix()
 
@@ -90,6 +93,8 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
         conv.io.introut := io.convMDataCmd.introut
         shape.io.introut := io.shapeMDataCmd.introut
 
+        register.io.DSPInstruction(0)  <> io.dsp_zp
+        register.io.DSPInstruction(1)  <> io.dsp_scale
     }
 
 
@@ -108,7 +113,7 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
 object Npu extends App {
     //    SpinalVerilog(new Npu(ConvConfig(8, 8, 8, 12, 8192, 512, 416, 2048, 1), ShapeConfig(8, 8, 416, 10, 1024)))
     //    TotalTcl(Config.filePath + File.separator + "tcl", Config.filePath).genTotalTcl
-    val clockCfg = ClockDomainConfig(resetKind = SYNC, resetActiveLevel = HIGH)
-    SpinalConfig(headerWithDate = true, oneFilePerComponent = true, inlineRom = true, nameWhenByFile = false, defaultConfigForClockDomains = clockCfg, targetDirectory = Config.filePath + File.separator + "rtl").generateVerilog(new Npu(ConvConfig(8, 16, 16, 12, 4096, 512, 640, 4096, 1), ShapeConfig(8, 8, 640, 12, 4096)))
+    val clockCfg = ClockDomainConfig(resetKind = ASYNC, resetActiveLevel = LOW)
+    SpinalConfig(headerWithDate = true, anonymSignalPrefix = "tmp", inlineConditionalExpression = true, oneFilePerComponent = true, nameWhenByFile = false, defaultConfigForClockDomains = clockCfg, targetDirectory = Config.filePath + File.separator + "rtl").generateVerilog(new Npu(ConvConfig(8, 16, 16, 12, 4096, 512, 640, 4096, 1), ShapeConfig(8, 8, 640, 12, 4096)))
     TotalTcl(Config.filePath + File.separator + "tcl", Config.filePath).genTotalTcl
 }

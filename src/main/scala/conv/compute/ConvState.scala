@@ -123,8 +123,8 @@ case class ConvState(convConfig: ConvConfig) extends Component {
     val io = new Bundle {
         val control = in Bits (4 bits)
         val complete = in Bits (4 bits)
-        val state = out(Reg(Bits(4 bits)))
-        val sign = out(Reg(Bits(4 bits)))
+        val state = out(Reg(Bits(4 bits)) init(0))
+        val sign = out(Reg(Bits(4 bits)) init(0))
         val dmaReadValid = out(Reg(Bool()) init False)
         val dmaWriteValid = out(Reg(Bool()) init False)
         val softReset = out Bool()
@@ -154,8 +154,8 @@ case class ConvState(convConfig: ConvConfig) extends Component {
 
     val dmaReadValid = Reg(Bool()) init False
     val dmaWriteValid = Reg(Bool()) init False
-    io.dmaWriteValid := Delay(dmaWriteValid, 4)
-    io.dmaReadValid := Delay(dmaReadValid, 4)
+    io.dmaWriteValid := Delay(dmaWriteValid, 4, init = False)
+    io.dmaReadValid := Delay(dmaReadValid, 4, init = False)
     when(fsm.currentState === ConvStateEnum.IDLE && fsm.nextState === ConvStateEnum.PARA) {
         io.sign := CONV_STATE.PARA_SIGN
         dmaReadValid.set()

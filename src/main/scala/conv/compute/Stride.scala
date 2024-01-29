@@ -64,14 +64,14 @@ class Stride(convConfig: ConvConfig) extends Component {
     val initCnt = WaCounter(fsm.currentState === StrideEnum.INIT, 3, 7)
     fsm.initEnd := initCnt.valid
 
-    val channelTimes = RegNextWhen(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM), fsm.currentState === StrideEnum.INIT)
-    val colTimes = RegNextWhen(io.colNumIn, fsm.currentState === StrideEnum.INIT)
-    val rowTimes = RegNextWhen(io.rowNumIn, fsm.currentState === StrideEnum.INIT)
+    val channelTimes = RegNextWhen(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM), fsm.currentState === StrideEnum.INIT) init(0)
+    val colTimes = RegNextWhen(io.colNumIn, fsm.currentState === StrideEnum.INIT)   init(0)
+    val rowTimes = RegNextWhen(io.rowNumIn, fsm.currentState === StrideEnum.INIT)   init(0)
 
     //    val dataCount1 = RegNext(channelTimes * colTimes)
     //    val dataCount2 = RegNext(dataCount1 |<< 1)
     //    val dataCount = io.enStride ? dataCount2 | dataCount1
-    val dataCount = RegNext(channelTimes * colTimes)
+    val dataCount = RegNext(channelTimes * colTimes)    init(0)
 
     val channelCnt = WaCounter(fsm.currentState === StrideEnum.STRIDE && io.sData.fire, channelTimes.getWidth, channelTimes - 1)
     val colCnt = WaCounter(channelCnt.valid && io.sData.fire, colTimes.getWidth, colTimes - 1)
@@ -103,8 +103,8 @@ class Stride(convConfig: ConvConfig) extends Component {
     }
 
     fifo.io.pop <> io.mData
-    val colOutTimes = Reg(UInt(io.colNumIn.getWidth bits))
-    val rowOutTimes = Reg(UInt(io.rowNumIn.getWidth bits))
+    val colOutTimes = Reg(UInt(io.colNumIn.getWidth bits)) init(0)
+    val rowOutTimes = Reg(UInt(io.rowNumIn.getWidth bits)) init 0
     when(io.enStride) {
         colOutTimes := (colTimes >> 1).resized
         rowOutTimes := (rowTimes >> 1).resized

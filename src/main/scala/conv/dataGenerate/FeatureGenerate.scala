@@ -95,7 +95,7 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     noIoPrefix()
 
     val channelTimes: UInt = RegNext(io.channelIn >> log2Up(featureGenerateConfig.COMPUTE_CHANNEL_NUM), 0)
-    val totalCnt = RegNext(channelTimes * io.colNumIn)
+    val totalCnt = RegNext(channelTimes * io.colNumIn) init(0)
     val fsm = FeatureGenerateFsm(io.start)
     fsm.fifoReady := io.mData.ready
 
@@ -103,7 +103,7 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     val rdAddr = Reg(UInt(log2Up(featureGenerateConfig.FEATURE_RAM_DEPTH) bits)) init 0
     val wrData = Vec(UInt(featureGenerateConfig.STREAM_DATA_WIDTH bits), 2)
     val rdData = Vec(UInt(featureGenerateConfig.STREAM_DATA_WIDTH bits), 2)
-    val wrAddr = RegNext(rdAddr)
+    val wrAddr = RegNext(rdAddr) init 0
     when(io.sData.fire) {
         when(rdAddr === totalCnt - 1) {
             rdAddr := 0
@@ -140,15 +140,15 @@ class FeatureGenerate(featureGenerateConfig: FeatureGenerateConfig) extends Comp
     }
     val valid = Vec(Reg(Bool()) init False, featureGenerateConfig.KERNEL_NUM)
 
-    io.mData.mData(0).valid := Delay(valid(0), 3)
-    io.mData.mData(3).valid := Delay(valid(3), 3)
-    io.mData.mData(6).valid := Delay(valid(6), 3)
-    io.mData.mData(1).valid := Delay(valid(1), 2)
-    io.mData.mData(4).valid := Delay(valid(4), 2)
-    io.mData.mData(7).valid := Delay(valid(7), 2)
-    io.mData.mData(2).valid := Delay(valid(2), 1)
-    io.mData.mData(5).valid := Delay(valid(5), 1)
-    io.mData.mData(8).valid := Delay(valid(8), 1)
+    io.mData.mData(0).valid := Delay(valid(0), 3, init = False)
+    io.mData.mData(3).valid := Delay(valid(3), 3, init = False)
+    io.mData.mData(6).valid := Delay(valid(6), 3, init = False)
+    io.mData.mData(1).valid := Delay(valid(1), 2, init = False)
+    io.mData.mData(4).valid := Delay(valid(4), 2, init = False)
+    io.mData.mData(7).valid := Delay(valid(7), 2, init = False)
+    io.mData.mData(2).valid := Delay(valid(2), 1, init = False)
+    io.mData.mData(5).valid := Delay(valid(5), 1, init = False)
+    io.mData.mData(8).valid := Delay(valid(8), 1, init = False)
 
     when(fsm.currentState === FeatureGenerateEnum.WR && io.sData.fire) {
         when(columnCnt.count < io.colNumIn - 2) {

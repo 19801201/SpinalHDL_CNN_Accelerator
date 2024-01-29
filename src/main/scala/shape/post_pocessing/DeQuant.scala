@@ -37,13 +37,13 @@ class DeQuant(pocessingConfig: PocessingConfig) extends Component {
         val z_1             = out UInt (pocessingConfig.HEAD_WIDTH bits)
     }
     noIoPrefix()
-    io.reg_data_quan := Delay(io.reg_data, 4)
-    io.obj_data_quan := Delay(io.obj_data, 4)
-    io.cls_data_quan := Delay(io.cls_data, 4)
-    io.x_1 := Delay(io.x, 4)
-    io.y_1 := Delay(io.y, 4)
-    io.z_1 := Delay(io.z, 4)
-    io.mData_valid := Delay(io.sData_valid, 4)
+    io.reg_data_quan := Delay(io.reg_data, 4, init = U(0).resized)
+    io.obj_data_quan := Delay(io.obj_data, 4, init = U(0).resized)
+    io.cls_data_quan := Delay(io.cls_data, 4, init = U(0).resized)
+    io.x_1 := Delay(io.x, 4, init = U(0).resized)
+    io.y_1 := Delay(io.y, 4, init = U(0).resized)
+    io.z_1 := Delay(io.z, 4, init = U(0).resized)
+    io.mData_valid := Delay(io.sData_valid, 4, init = False)
 
     val u_obj_dequan_add = AddSub(8, 16, 16, AddSubConfig.unsigned, AddSubConfig.signed, 1, AddSubConfig.lut, this.clockDomain, AddSubConfig.subtract, "obj_dequan_add")
     u_obj_dequan_add.io.A <> io.obj_data

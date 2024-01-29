@@ -56,7 +56,7 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     val fifoReady = Reg(Bool()) init False
 
     val concat = new Concat(shapeConfig.concatConfig)
-    concat.dataPort.start <> Delay(shapeState.io.start(Start.CONCAT), 8)
+    concat.dataPort.start <> Delay(shapeState.io.start(Start.CONCAT), 8, init = False)
     concat.dataPort.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
     concat.dataPort.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
     concat.dataPort.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
@@ -68,7 +68,7 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     concat.dataPort.fifoReady <> fifoReady
 
     val add = new Add(shapeConfig.addConfig)
-    add.dataPort.start <> Delay(shapeState.io.start(Start.ADD), 8)
+    add.dataPort.start <> Delay(shapeState.io.start(Start.ADD), 8, init = False)
     add.dataPort.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
     add.dataPort.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
     add.dataPort.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
@@ -80,28 +80,28 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
     add.dataPort.fifoReady <> fifoReady
 
     val maxPooling = new MaxPooling(shapeConfig.maxPoolingConfig)
-    maxPooling.io.start <> Delay(shapeState.io.start(Start.MAX_POOLING), 8)
+    maxPooling.io.start <> Delay(shapeState.io.start(Start.MAX_POOLING), 8, init = False)
     maxPooling.io.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
     maxPooling.io.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
     maxPooling.io.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
     maxPooling.io.fifoReady <> fifoReady
 
     val split = new Split(shapeConfig.splitConfig)
-    split.io.start <> Delay(shapeState.io.start(Start.SPLIT), 8)
+    split.io.start <> Delay(shapeState.io.start(Start.SPLIT), 8, init = False)
     split.io.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
     split.io.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
     split.io.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
     split.io.fifoReady <> fifoReady
 
     val upSampling = new UpSampling(shapeConfig.upSamplingConfig)
-    upSampling.io.start <> Delay(shapeState.io.start(Start.UP_SAMPLING), 8)
+    upSampling.io.start <> Delay(shapeState.io.start(Start.UP_SAMPLING), 8, init = False)
     upSampling.io.colNumIn <> instructionReg(Instruction.COL_NUM_IN).asUInt.resized
     upSampling.io.rowNumIn <> instructionReg(Instruction.ROW_NUM_IN).asUInt.resized
     upSampling.io.channelIn <> instructionReg(Instruction.CHANNEL_IN).asUInt.resized
     upSampling.io.fifoReady <> fifoReady
 
     val decode = new Decode(shapeConfig.pocessingConfig)
-    decode.io.start         <>  Delay(shapeState.io.start(Start.DECODE), 8)
+    decode.io.start         <>  Delay(shapeState.io.start(Start.DECODE), 8, init = False)
     decode.io.scale         <>  instructionReg(Instruction.SCALE).asUInt.resized
     decode.io.zp            <>  instructionReg(Instruction.ZERO).asSInt.resized
     decode.io.w_addr        <>  io.w_addr
@@ -118,45 +118,45 @@ class Shape(shapeConfig: ShapeConfig) extends Component {
 //    println(mulDataCount1.io.P.getWidth)
     val dataCount1 = UInt(mulDataCount1.io.P.getWidth bits)
     dataCount1 := mulDataCount1.io.P.asBits.asUInt
-    val dataCount2 = RegNext(dataCount1 |<< 1)
-    val dataCount = Reg(UInt(dataCount2.getWidth bits))
+    val dataCount2 = RegNext(dataCount1 |<< 1) init(0)
+    val dataCount = Reg(UInt(dataCount2.getWidth bits)) init(0)
 
     val fifo = WaStreamFifoPipe(UInt(shapeConfig.STREAM_DATA_WIDTH bits), shapeConfig.ROW_MEM_DEPTH << 1)
     fifo.fifo.logic.ram.addAttribute("ram_style = \"block\"")
     fifo.io.pop <> io.mData
 
-    val channelOutTimes = Reg(UInt(instructionReg(Instruction.CHANNEL_IN).getWidth bits))
-    val colOutTimes = Reg(UInt(instructionReg(Instruction.COL_NUM_IN).getWidth bits))
-    val rowOutTimes = Reg(UInt(instructionReg(Instruction.ROW_NUM_IN).getWidth bits))
+    val channelOutTimes = Reg(UInt(instructionReg(Instruction.CHANNEL_IN).getWidth bits)) init(0)
+    val colOutTimes = Reg(UInt(instructionReg(Instruction.COL_NUM_IN).getWidth bits)) init(0)
+    val rowOutTimes = Reg(UInt(instructionReg(Instruction.ROW_NUM_IN).getWidth bits)) init 0
     switch(shapeState.io.state) {
         is(State.CONCAT) {
-            dataCount := RegNext(dataCount2)
-            colOutTimes := RegNext(instructionReg(Instruction.COL_NUM_IN).asUInt)
-            rowOutTimes := RegNext(instructionReg(Instruction.ROW_NUM_IN).asUInt)
+            dataCount := RegNext(dataCount2)    init 0
+            colOutTimes := RegNext(instructionReg(Instruction.COL_NUM_IN).asUInt)   init 0
+            rowOutTimes := RegNext(instructionReg(Instruction.ROW_NUM_IN).asUInt)   init 0
             channelOutTimes := (RegNext((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt) + RegNext((instructionReg(Instruction.CHANNEL_IN1) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)).asUInt)).resized
         }
         is(State.ADD) {
-            dataCount := RegNext(dataCount2)
-            colOutTimes := RegNext(instructionReg(Instruction.COL_NUM_IN).asUInt)
-            rowOutTimes := RegNext(instructionReg(Instruction.ROW_NUM_IN).asUInt)
+            dataCount := RegNext(dataCount2) init 0
+            colOutTimes := RegNext(instructionReg(Instruction.COL_NUM_IN).asUInt) init 0
+            rowOutTimes := RegNext(instructionReg(Instruction.ROW_NUM_IN).asUInt) init 0
             channelOutTimes := RegNext((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM))).asUInt.resized
         }
         is(State.MAX_POOLING) {
-            dataCount := RegNext(dataCount1.resized)
+            dataCount := RegNext(dataCount1.resized) init 0
             colOutTimes := RegNext((instructionReg(Instruction.COL_NUM_IN) >> 1)).asUInt.resized
             rowOutTimes := RegNext((instructionReg(Instruction.ROW_NUM_IN) >> 1)).asUInt.resized
             channelOutTimes := RegNext((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM))).asUInt.resized
         }
         is(State.UP_SAMPLING) {
-            dataCount := RegNext(dataCount2)
+            dataCount := RegNext(dataCount2) init 0
             colOutTimes := RegNext((instructionReg(Instruction.COL_NUM_IN) << 1)).asUInt.resized
             rowOutTimes := RegNext((instructionReg(Instruction.ROW_NUM_IN) << 1)).asUInt.resized
             channelOutTimes := RegNext((instructionReg(Instruction.CHANNEL_IN) >> log2Up(shapeConfig.COMPUTE_CHANNEL_NUM))).asUInt.resized
         }
         is(State.SPLIT) {
-            dataCount := RegNext(dataCount1.resized)
-            colOutTimes := RegNext(instructionReg(Instruction.COL_NUM_IN).asUInt)
-            rowOutTimes := RegNext(instructionReg(Instruction.ROW_NUM_IN).asUInt)
+            dataCount := RegNext(dataCount1.resized) init 0
+            colOutTimes := RegNext(instructionReg(Instruction.COL_NUM_IN).asUInt) init 0
+            rowOutTimes := RegNext(instructionReg(Instruction.ROW_NUM_IN).asUInt) init 0
             channelOutTimes := RegNext((instructionReg(Instruction.CHANNEL_IN) >> (1 + log2Up(shapeConfig.COMPUTE_CHANNEL_NUM)))).asUInt.resized
         }
         default {

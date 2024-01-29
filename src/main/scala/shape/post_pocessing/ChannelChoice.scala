@@ -121,24 +121,24 @@ class ChannelChoice(pocessingConfig: PocessingConfig) extends Component {
     io.reg_data := reg_obj_cls_cat(31 downto (0))
     io.obj_data := reg_obj_cls_cat(39 downto (32))
     io.cls_data := reg_obj_cls_cat(47 downto (40))
-    when(Delay(channelCnt.last_valid, 1)) {
+    when(Delay(channelCnt.last_valid, 1, init = False)) {
         io.mData_valid.set()
     } otherwise ({
         io.mData_valid.clear()
     })
 
     when(fsm.currentState === ChannelChoiceEnum.P3) {
-        io.z := RegNext(U(1)).resized
-        io.x := Delay(p3_colCnt.count, 1)
-        io.y := Delay(p3_rowCnt.count, 1)
+        io.z := RegNext(U(1)).resized init 0
+        io.x := Delay(p3_colCnt.count, 1, init = U(0).resized)
+        io.y := Delay(p3_rowCnt.count, 1, init = U(0).resized)
     } elsewhen (fsm.currentState === ChannelChoiceEnum.P4) {
-        io.z := RegNext(U(2))
-        io.x := Delay(p4_colCnt.count, 1)
-        io.y := Delay(p4_rowCnt.count, 1)
+        io.z := RegNext(U(2)) init 0
+        io.x := Delay(p4_colCnt.count, 1, init = U(0).resized)
+        io.y := Delay(p4_rowCnt.count, 1, init = U(0).resized)
     } elsewhen (fsm.currentState === ChannelChoiceEnum.P5) {
-        io.z := RegNext(U(3))
-        io.x := Delay(p5_colCnt.count, 1)
-        io.y := Delay(p5_rowCnt.count, 1)
+        io.z := RegNext(U(3)) init 0
+        io.x := Delay(p5_colCnt.count, 1, init = U(0).resized)
+        io.y := Delay(p5_rowCnt.count, 1, init = U(0).resized)
     }otherwise({
         io.z.clearAll()
         io.x.clearAll()

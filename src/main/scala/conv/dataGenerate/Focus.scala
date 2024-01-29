@@ -89,8 +89,8 @@ class Focus(convConfig: ConvConfig) extends Component {
         rowMemReadAddr.clear
     }
 
-    val pix1 = Reg(UInt(sDataWidth bits))
-    val pix2 = Reg(UInt(sDataWidth bits))
+    val pix1 = Reg(UInt(sDataWidth bits)) init(0)
+    val pix2 = Reg(UInt(sDataWidth bits)) init(0)
 
     io.sData.ready <> io.mData.ready
     when(fsm.currentState === FocusEnum.COMPUTE && io.sData.fire) {

@@ -19,16 +19,16 @@ class Quan(convConfig: ConvConfig) extends Component {
     }
     noIoPrefix()
     val bias = new Bias(convConfig)
-    bias.port.dataIn <> RegNext(io.dataIn)
+    bias.port.dataIn <> RegNext(io.dataIn, init = Vec(S(0).resized, convConfig.COMPUTE_CHANNEL_OUT_NUM))
     bias.port.quan <> io.biasIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices)
 
     val scale = new Scale(convConfig)
     scale.port.dataIn <> bias.port.dataOut
-    scale.port.quan <> Delay(io.scaleIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 2)
+    scale.port.quan <> Delay(io.scaleIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 2, init = Vec(U(0).resized, convConfig.COMPUTE_CHANNEL_OUT_NUM))
 
     val shift = new Shift(convConfig)
     shift.port.dataIn <> scale.port.dataOut
-    shift.port.quan <> Delay(io.shiftIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 10 + 1)
+    shift.port.quan <> Delay(io.shiftIn.subdivideIn(convConfig.COMPUTE_CHANNEL_OUT_NUM slices), 10 + 1, init = Vec(U(0).resized, convConfig.COMPUTE_CHANNEL_OUT_NUM))
 
     val zero = new Zero(convConfig)
     zero.io.dataIn <> shift.port.dataOut
@@ -60,21 +60,11 @@ class Bias(convConfig: ConvConfig) extends Component {
 
 
     val port = QuanSubPort(convConfig, 32, 32, 48).setName("Bias")
-    val dataInTemp = Vec(Reg(SInt(48 bits)), convConfig.COMPUTE_CHANNEL_OUT_NUM)
-    val biasInTemp = Vec(Reg(UInt(48 bits)), convConfig.COMPUTE_CHANNEL_OUT_NUM)
+    val dataInTemp = Vec(Reg(SInt(48 bits)) init(0), convConfig.COMPUTE_CHANNEL_OUT_NUM)
+    val biasInTemp = Vec(Reg(UInt(48 bits)) init(0), convConfig.COMPUTE_CHANNEL_OUT_NUM)
     (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
         dataInTemp(i) := port.dataIn(i) @@ S"16'd0"
-        switch(port.quan(i)(30 downto 24)) {
-            for (j <- 0 until 17) {
-                is(j) {
-                    biasInTemp(i) := S(port.quan(i)(31)).resize(8 + j bits).asUInt @@ port.quan(i)(23 downto 0) @@ U(16 - j bits, default -> false)
-                }
-            }
-            default {
-                //算法控制，实际这个default是不会出现的
-                biasInTemp(i) := 0
-            }
-        }
+        biasInTemp(i) := (S(port.quan(i)(31)).resize(8 bits) @@ port.quan(i)(23 downto 0) @@ U(0, 16 bits) >> port.quan(i)(30 downto(24))).asUInt
     })
     val biasAdd = Array.tabulate(convConfig.COMPUTE_CHANNEL_OUT_NUM)(i => {
         def gen = {
@@ -115,7 +105,7 @@ class Scale(convConfig: ConvConfig) extends Component {
     //        out
     //    }
     (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
-        port.dataOut(i) := RegNext(scaleMulOut(i))
+        port.dataOut(i) := RegNext(scaleMulOut(i)) init(0)
     })
 
 }
@@ -126,7 +116,7 @@ class Shift(convConfig: ConvConfig) extends Component {
     def <<(in: SInt, sh: UInt): SInt = {
         val dataTemp = SInt(32 bits)
         dataTemp := in >> sh
-        val out = Reg(SInt(16 bits))
+        val out = Reg(SInt(16 bits)) init 0
         when(dataTemp(0)) {
             out := (dataTemp.sign.asSInt @@ dataTemp(15 downto 1)) + 1
         } otherwise {
@@ -140,9 +130,9 @@ class Shift(convConfig: ConvConfig) extends Component {
     }
 
 }
-//object Shift extends App {
-//    SpinalVerilog(new Shift(ConvConfig(8, 8, 8, 12, 8192, 512, 10, 2048, 1, ConvType.conv33)))
-//}
+object Shift extends App {
+    SpinalVerilog(new Shift(ConvConfig(8, 16, 16, 12, 4096, 512, 640, 4096, 1)))
+}
 
 
 class Zero(convConfig: ConvConfig) extends Component {
@@ -165,7 +155,7 @@ class Zero(convConfig: ConvConfig) extends Component {
         gen
     })
 
-    val normalData = Vec(Reg(UInt(8 bits)), convConfig.COMPUTE_CHANNEL_OUT_NUM)
+    val normalData = Vec(Reg(UInt(8 bits)) init(0), convConfig.COMPUTE_CHANNEL_OUT_NUM)
     io.dataOut := normalData
     (0 until convConfig.COMPUTE_CHANNEL_OUT_NUM).foreach(i => {
         when(addZeroTemp(i).sign) {

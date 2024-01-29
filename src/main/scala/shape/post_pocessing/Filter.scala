@@ -76,7 +76,7 @@ case class FilterState(start: Bool) extends Area {
 /**
  * 利用置信度进行第一轮筛选
  * obj_data * cls_data >= conf_thres(0.625) << 34  // 10,737,418,240 (0.625)   // 8,589,934,592 (0.5)
- * 地址划分 0 - 51,200 obj
+ * 地址划分 0 - 51,200 cls 80 * 80
  * 51,200 - 52,224 conf
  * @param pocessingConfig
  */
@@ -140,12 +140,12 @@ class Filter(pocessingConfig: PocessingConfig) extends Component {
 
     val conf_data = UInt(64 bits)
     val conf_fifo = StreamFifo(UInt(64 bits), pocessingConfig.MEM_DEPTH)
-    conf_fifo.io.push.valid := conf_mask && Delay(io.sData_valid, 4)
-    conf_fifo.io.push.payload := Delay(io.s_reg_data @@ io.s_obj_data_quan @@ io.s_cls_data_quan @@ io.s_x @@ io.s_y @@ io.s_z, 4)
+    conf_fifo.io.push.valid := conf_mask && Delay(io.sData_valid, 4, init = False)
+    conf_fifo.io.push.payload := Delay(io.s_reg_data @@ io.s_obj_data_quan @@ io.s_cls_data_quan @@ io.s_x @@ io.s_y @@ io.s_z, 4, init = U(0).resized)
     conf_fifo.io.pop.ready := fsm.currentState === FilterEnum.SEND_CONF
     conf_data := Mux(conf_fifo.io.pop.valid, conf_fifo.io.pop.payload, U(0).resized)
 
-    when(Delay(fsm.currentState === FilterEnum.P3, 1)){
+    when(Delay(fsm.currentState === FilterEnum.P3, 1, init = False)){
         io.w_data := cls_data
     }elsewhen(fsm.currentState === FilterEnum.SEND_CONF){
         io.w_data := conf_data
@@ -154,7 +154,7 @@ class Filter(pocessingConfig: PocessingConfig) extends Component {
     })
 
     val send_addr = Reg(UInt(12 bits)) init 0
-    when(Delay(io.sData_valid && p3_colCnt.count(2 downto (0)) === 7, 1)) {
+    when(Delay(io.sData_valid && p3_colCnt.count(2 downto (0)) === 7, 1, init = False)) {
         send_addr := send_addr + 1
         io.w_en := True
     } elsewhen (fsm.currentState === FilterEnum.SEND_CONF) {

@@ -47,7 +47,7 @@ class ConvCompute(convConfig: ConvConfig) extends Component {
     }
     noIoPrefix()
     ClockDomain(clock = this.clockDomain.clock, reset = this.clockDomain.reset, softReset = io.softReset) {
-        val convType = Reg(Bits(2 bits))
+        val convType = Reg(Bits(2 bits)) init 0
         when(io.startPa) {
             convType := io.convType
         }

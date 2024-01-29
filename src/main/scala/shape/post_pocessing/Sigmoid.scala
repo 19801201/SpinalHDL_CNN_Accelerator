@@ -103,25 +103,25 @@ class Sigmoid(pocessingConfig: PocessingConfig) extends Component {
     val obj_result = Reg(UInt(32 bits)) init (0)
     val cls_result = Reg(UInt(32 bits)) init (0)
 
-    when(Delay(obj_num_le_0, 1)){
+    when(Delay(obj_num_le_0, 1, init = False)){
         obj_result := U(131072, 32 bits) - obj_mid_result
     }otherwise({
         obj_result := obj_mid_result
     })
 
-    when(Delay(cls_num_le_0, 1)) {
+    when(Delay(cls_num_le_0, 1, init = False)) {
         cls_result := U(131072, 32 bits) - cls_mid_result
     } otherwise ({
         cls_result := cls_mid_result
     })
 
-    io.mData_valid := Delay(io.sData_valid, 2)
-    io.m_reg_data := Delay(io.reg_data_quan, 2)
-    io.m_obj_data_quan := Delay(io.obj_data_quan, 2)
-    io.m_cls_data_quan := Delay(io.cls_data_quan, 2)
-    io.m_x := Delay(io.x_1, 2)
-    io.m_y := Delay(io.y_1, 2)
-    io.m_z := Delay(io.z_1, 2)
+    io.mData_valid := Delay(io.sData_valid, 2, init = False)
+    io.m_reg_data := Delay(io.reg_data_quan, 2, init = U(0).resized)
+    io.m_obj_data_quan := Delay(io.obj_data_quan, 2, init = U(0).resized)
+    io.m_cls_data_quan := Delay(io.cls_data_quan, 2, init = U(0).resized)
+    io.m_x := Delay(io.x_1, 2, init = U(0).resized)
+    io.m_y := Delay(io.y_1, 2, init = U(0).resized)
+    io.m_z := Delay(io.z_1, 2, init = U(0).resized)
     io.m_obj_data := obj_result
     io.m_cls_data := cls_result
 }

@@ -21,7 +21,7 @@ class FeatureConv11Convert(featureGenerateConfig: FeatureGenerateConfig) extends
     val initCnt = WaCounter(fsm.currentState === FeatureWidthConvertEnum.INIT, 3, 7)
     fsm.initEnd := initCnt.valid
 
-    val channelInTimes = RegNext(io.channelIn >> log2Up(featureGenerateConfig.COMPUTE_CHANNEL_NUM))
+    val channelInTimes = RegNext(io.channelIn >> log2Up(featureGenerateConfig.COMPUTE_CHANNEL_NUM)) init(0)
     val channelCnt = WaCounter(io.sData.fire, featureGenerateConfig.CHANNEL_WIDTH, channelInTimes - 1)
     val columnCnt = WaCounter(channelCnt.last_valid, featureGenerateConfig.FEATURE_WIDTH, io.colNumIn - 1)
     val rowCnt = WaCounter(fsm.currentState === FeatureWidthConvertEnum.END, featureGenerateConfig.FEATURE_WIDTH, io.rowNumIn - 1)

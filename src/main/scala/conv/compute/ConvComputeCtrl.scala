@@ -127,9 +127,9 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
             temp := 0
         }
     }
-    val channelInTimes = RegNext(temp)
+    val channelInTimes = RegNext(temp) init(0)
 
-    val channelOutTimes = RegNext(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM))
+    val channelOutTimes = RegNext(io.channelOut >> log2Up(convConfig.COMPUTE_CHANNEL_OUT_NUM)) init(0)
     val channelInCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE, convConfig.CHANNEL_WIDTH, channelInTimes - 1)
     val channelOutCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.valid, convConfig.CHANNEL_WIDTH, channelOutTimes - 1)
     val columnCnt = WaCounter(convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.valid && channelOutCnt.valid, convConfig.FEATURE_WIDTH, io.colNumIn - 1)
@@ -165,14 +165,14 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
         } otherwise {
             data := 0
         }
-        val a = Delay(data, delay).addAttribute("max_fanout = \"50\"")
+        val a = Delay(data, delay, init = U(0).resized).addAttribute("max_fanout = \"50\"")
         a
     }
 
     val featureMemReadAddrTemp = Reg(UInt(log2Up(convConfig.FEATURE_MEM_DEPTH) bits)) init 0 addAttribute ("max_fanout = \"50\"")
     io.featureMemReadAddr := increase(featureMemReadAddrTemp, channelInCnt.valid, 2)
 
-    val weightReadAddr = Reg(UInt(log2Up(convConfig.WEIGHT_M_DATA_DEPTH) bits)) addAttribute ("max_fanout = \"50\"")
+    val weightReadAddr = Reg(UInt(log2Up(convConfig.WEIGHT_M_DATA_DEPTH) bits)) init 0 addAttribute ("max_fanout = \"50\"")
     val weightReadAddrTemp = increase(weightReadAddr, channelInCnt.valid && channelOutCnt.valid, 1)
     io.weightReadAddr.map(_ := weightReadAddrTemp)
 
@@ -187,14 +187,14 @@ case class ConvComputeCtrl(convConfig: ConvConfig) extends Component {
     val activationDealyCount = 8
     val mValidDelayCountActivation = normDelayCount + (1) + 2 + scaleDealyCount + shiftDealyCount + activationDealyCount + 2
     val mValidDelayCountNoActivation = normDelayCount + (1) + 2 + scaleDealyCount + shiftDealyCount + 2
-    io.normPreValid := Delay(channelTimesAdd, normDelayCount - 1)
+    io.normPreValid := Delay(channelTimesAdd, normDelayCount - 1, init = False)
     val normValidTemp = Reg(Bool()) init False
     setClear(normValidTemp, convComputeCtrlFsm.currentState === ConvComputeCtrlEnum.COMPUTE && channelInCnt.valid)
     val normValidTempQ = History(normValidTemp, mValidDelayCountActivation + 1)
     io.normValid := normValidTempQ(normDelayCount)
 
     /** **************************************************************************************** */
-    io.sCount := RegNext(io.colNumIn * channelInTimes).resized
+    io.sCount := RegNext(io.colNumIn * channelInTimes, init = U(0)).resized
     io.mCount := io.sCount
     val biasAddrCnt = WaCounter(normValidTempQ(biasDelayCount), log2Up(convConfig.QUAN_M_DATA_DEPTH), channelOutTimes - 1)
     io.biasReadAddr := biasAddrCnt.count

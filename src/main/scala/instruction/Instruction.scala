@@ -16,7 +16,7 @@ class Instruction extends Component {
         val convInstruction = out Vec(Reg(Bits(32 bits)) init 0, CONV_STATE.Reg.length)
         val shapeInstruction = out Vec(Reg(Bits(32 bits)) init 0, shape.Instruction.Reg.length)
         val quantInstruction = out Vec(Reg(Bits(32 bits)) init 0, 2)
-//        val quantInstruction = out Vec(Reg(Bits(32 bits)) init 0, 3)
+        val DSPInstruction = out Vec(Reg(Bits(32 bits)) init 0, 2)
     }
     noIoPrefix()
     AxiLite4SpecRenamer(io.regSData)
@@ -115,6 +115,11 @@ class Instruction extends Component {
     io.quantInstruction(0) := quant_zp.field(Bits(32 bits), WO, doc = "QUANT_ZP_REG")
     val quant_scale = bus.newReg(doc = "预处理量化scale")
     io.quantInstruction(1) := quant_scale.field(Bits(32 bits), WO, doc = "QUANT_SCALE_REG")
+
+    val dequant_zp_float = bus.newReg(doc = "浮点值zp")
+    io.DSPInstruction(0) := dequant_zp_float.field(Bits(32 bits), WO, doc = "DEQUANT_ZP_REG")
+    val dequant_scale_float = bus.newReg(doc = "浮点值scale")
+    io.DSPInstruction(1) := dequant_scale_float.field(Bits(32 bits), WO, doc = "DEQUANT_SCALE_REG")
 
 //    val wait_en = bus.newReg(doc = "wait_en")
 //    io.quantInstruction(2) := wait_en.field(Bits(32 bits), WO, doc = "wait_en")

@@ -14,13 +14,11 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
     }
     noIoPrefix()
 
-    val leaky = U((convConfig.leakyRatio * scala.math.pow(2, 17)).toInt, 16 bits)
-    // val midHigh = U((0.501 * scala.math.pow(2, 17)).toInt, 17 bits)
-    val midLow = U((0.5 * scala.math.pow(2, 17)).toInt, 17 bits)
+    val leaky = U((convConfig.leakyRatio * scala.math.pow(2, 17)).toInt, 16 bits)       // 13107
 
     def <<(in: UInt, genTcl: Boolean): UInt = {
-        val out = Reg(UInt(8 bits))
-        val mulOut = Reg(SInt(16 bits))
+        val out = Reg(UInt(8 bits)) init(0)
+        val mulOut = Reg(SInt(16 bits)) init(0)
 
         val subOut = SInt(16 bits)
         val inTemp = (U"8'd0" @@ in).asSInt
@@ -38,64 +36,7 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
         mul.io.B <> leaky
         mul.io.P <> mulTemp
 
-        //        val isFive = Bool()
-        //        switch(subOut) {
-        //            (0 until 10).foreach(i => {
-        //                is(-10 * i - 5) {
-        //                    isFive := True
-        //                }
-        //                default {
-        //                    isFive := False
-        //                }
-        //            })
-        //        }
-
-        val srcTemp = Delay(subOut, 3)
-
-        //        when(!srcTemp.sign) {
-        //            mulOut := srcTemp
-        //        } otherwise {
-        //            when(mantissa.asUInt >= midHigh) {
-        //                mulOut := odd.resized
-        //            } elsewhen (mantissa.asUInt <= midLow) {
-        //                mulOut := even.resized
-        //            } otherwise {
-        //                when(mulTemp(18)) {
-        //                    mulOut := odd.resized
-        //                } otherwise {
-        //                    mulOut := even.resized
-        //                }
-        //            }
-        //        }
-        //3*3更优
-        //        when(!srcTemp.sign) {
-        //            mulOut := srcTemp
-        //        } otherwise {
-        //            when(mantissa.asUInt < midLow) {
-        //                mulOut := even.resized
-        //            } otherwise {
-        //                mulOut := odd.resized
-        //            }
-        //        }
-
-
-        //1*1更优
-        //        val isFiveDelay = Delay(isFive, 3)
-        //        when(!srcTemp.sign) {
-        //            mulOut := srcTemp
-        //        } elsewhen (isFiveDelay) {
-        //            when(mulTemp(17)) {
-        //                mulOut := odd.resized
-        //            } otherwise {
-        //                mulOut := even.resized
-        //            }
-        //        } otherwise {
-        //            when(mantissa.asUInt < midLow) {
-        //                mulOut := even.resized
-        //            } otherwise {
-        //                mulOut := odd.resized
-        //            }
-        //        }
+        val srcTemp = Delay(subOut, 3, init = S(0, 16 bits))
 
         when(srcTemp.sign) {
             when(mantissa === 0) {
@@ -117,13 +58,13 @@ class LeakyRelu(convConfig: ConvConfig) extends Component {
             mulOut := srcTemp
         }
 
-        val amendOut = Reg(SInt(16 bits))
+        val amendOut = Reg(SInt(16 bits)) init(0)
 
         val list = List(S"16'b1111_1111_1111_1011", S"16'b1111_1111_1111_0001", S"16'b1111_1111_1110_0111", S"16'b1111_1111_1101_1101",
             S"16'b1111_1111_1101_0011", S"16'b1111_1111_1100_1001", S"16'b1111_1111_1011_1111", S"16'b1111_1111_1011_0101",
             S"16'b1111_1111_1010_1011", S"16'b1111_1111_1010_0001", S"16'b1111_1111_1001_0111", S"16'b1111_1111_1000_1101",
             S"16'b1111_1111_1000_0011", S"16'b1111_1111_0111_1001", S"16'b1111_1111_0110_1111", S"16'b1111_1111_0110_0101")
-        val srcTempDelay = RegNext(srcTemp)
+        val srcTempDelay = RegNext(srcTemp) init 0
         when(srcTempDelay.sign){
             switch(srcTempDelay) {
                 for (i <- 0 until 16) {

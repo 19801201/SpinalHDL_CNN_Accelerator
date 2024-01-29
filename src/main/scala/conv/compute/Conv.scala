@@ -53,9 +53,9 @@ class Conv(convConfig: ConvConfig) extends Component {
     //    }
 
     val convCompute = new ConvCompute(convConfig)
-    convCompute.io.softReset := Delay(convState.io.softReset, 2)
-    convCompute.io.startPa := Delay(para, 3)
-    convCompute.io.startCu := Delay(compute, 3)
+    convCompute.io.softReset := Delay(convState.io.softReset, 2, init = False)
+    convCompute.io.startPa := Delay(para, 3, init = False)
+    convCompute.io.startCu := Delay(compute, 3, init = False)
     convCompute.io.last <> io.last
 
     convCompute.io.sFeatureFirstLayerData <> io.sFeatureFirstLayerData

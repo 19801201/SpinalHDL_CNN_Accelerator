@@ -147,7 +147,7 @@ class Add(addConfig: AddConfig) extends Component {
         dataPort.mData.payload.subdivideIn(addConfig.COMPUTE_CHANNEL_NUM slices)(i) := temp8
     })
 
-    dataPort.mData.valid := Delay(dataPort.sData.fire, 9 + 6)
+    dataPort.mData.valid := Delay(dataPort.sData.fire, 9 + 6, init = False)
 }
 
 case class AddAdd(addConfig: AddConfig) extends Component {

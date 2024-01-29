@@ -34,7 +34,7 @@ class UpSampling(upSamplingConfig: UpSamplingConfig) extends Component {
     } otherwise {
         fsm.computeEnd := columnCnt.last_valid
     }
-    fsm.last := RegNext(rowCnt.valid)
+    fsm.last := RegNext(rowCnt.valid) init(False)
 
     val dataTemp = WaStreamFifoPipe(UInt(upSamplingConfig.STREAM_DATA_WIDTH bits), upSamplingConfig.ROW_MEM_DEPTH)
     dataTemp.fifo.logic.ram.addAttribute("ram_style = \"block\"")
@@ -43,7 +43,7 @@ class UpSampling(upSamplingConfig: UpSamplingConfig) extends Component {
 
     when(!rowCnt.count(0)) {
         when(!columnCnt.count(0)) {
-            io.sData.ready := io.mData.ready && dataTemp.io.push.ready && channelMem.io.push.ready
+            io.sData.ready := io.mData.ready && dataTemp.io.push.ready && channelMem.io.push.ready && io.fifoReady
             io.mData.valid := io.sData.fire
             io.mData.payload := io.sData.payload
             dataTemp.io.push.payload := io.sData.payload

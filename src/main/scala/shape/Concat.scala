@@ -28,7 +28,7 @@ class Concat(concatConfig: ConcatConfig) extends Component {
     val channelTimes0 = dataPort.channelIn >> log2Up(concatConfig.COMPUTE_CHANNEL_NUM)
     val channelTimes1 = channelIn1 >> log2Up(concatConfig.COMPUTE_CHANNEL_NUM)
 
-    val channelTimes = RegNext(channelTimes0 + channelTimes1)
+    val channelTimes = RegNext(channelTimes0 + channelTimes1) init(0)
 
     val channelCnt = WaCounter((dataPort.sData.fire || sData1.fire) && (fsm.currentState === ShapeStateMachineEnum.COMPUTE), channelTimes.getWidth, channelTimes - 1)
     val columnCnt = WaCounter(channelCnt.valid && (dataPort.sData.fire || sData1.fire), concatConfig.FEATURE_WIDTH, dataPort.colNumIn - 1)
@@ -76,9 +76,9 @@ class Concat(concatConfig: ConcatConfig) extends Component {
         scaleTemp := 0
     }
     concatScale.io.dataIn <> concatZero.io.dataOut
-    concatScale.io.scale := Delay(scaleTemp, 2)
+    concatScale.io.scale := Delay(scaleTemp, 2, init = U(0).resized)
     dataPort.mData.payload.subdivideIn(concatConfig.COMPUTE_CHANNEL_NUM slices) <> concatScale.io.dataOut
-    dataPort.mData.valid := Delay(dataPort.sData.fire || sData1.fire, 7 + 3)
+    dataPort.mData.valid := Delay(dataPort.sData.fire || sData1.fire, 7 + 3, init = False)
 }
 
 case class ConcatZero(concatConfig: ConcatConfig) extends Component {
@@ -128,8 +128,8 @@ case class ConcatScale(concatConfig: ConcatConfig) extends Component {
     })
 
     def <<(dataIn: SInt): UInt = {
-        val dataOut = Reg(UInt(8 bits))
-        val dataInTemp = Reg(SInt(32 bits))
+        val dataOut = Reg(UInt(8 bits))             init(0)
+        val dataInTemp = Reg(SInt(32 bits))         init 0
         when(dataIn(0)) {
             dataInTemp := dataIn(32 downto 1) + 1
         } otherwise {
@@ -152,5 +152,5 @@ case class ConcatScale(concatConfig: ConcatConfig) extends Component {
 }
 
 object Concat extends App {
-    SpinalVerilog(new Concat(ConcatConfig(8, 8, 640, 10)))
+    SpinalVerilog(new Concat(ConcatConfig(8, 8, 640, 12)))
 }
