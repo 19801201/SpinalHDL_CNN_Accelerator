@@ -134,7 +134,7 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
             conv(i).io.introut := io.convIo(i).convMDataCmd.introut
 
             io.convIo(i).convMDataCmd.cmd := register.dma(i)(0)(0) ## register.dma(i)(1)(0)
-            io.convIo(i).convSDataCmd.cmd := register.dma(i)(0)(1) ## register.dma(0)(1)(1)
+            io.convIo(i).convSDataCmd.cmd := register.dma(i)(0)(1) ## register.dma(i)(1)(1)
             io.convIo(i).convFirstLayerSDataCmd.cmd := register.dma(i)(0)(1) ## register.dma(i)(1)(1)
         })
 
@@ -142,11 +142,11 @@ class Npu(convConfig: ConvConfig, shapeConfig: ShapeConfig) extends Component {
 
 
         io.shapeMDataCmd.valid := shape.io.dmaWriteValid
-        io.shapeMDataCmd.cmd := register.dma(1)(0)(0) ## register.dma(1)(1)(0)
+        io.shapeMDataCmd.cmd := register.dma(ConvNum)(0)(0) ## register.dma(ConvNum)(1)(0)
         io.shapeSDataCmd.valid := shape.io.dmaReadValid(0)
-        io.shapeSDataCmd.cmd := register.dma(1)(0)(1) ## register.dma(1)(1)(1)
+        io.shapeSDataCmd.cmd := register.dma(ConvNum)(0)(1) ## register.dma(ConvNum)(1)(1)
         io.shapeSData1Cmd.valid := shape.io.dmaReadValid(1)
-        io.shapeSData1Cmd.cmd := register.dma(1)(0)(2) ## register.dma(1)(1)(2)
+        io.shapeSData1Cmd.cmd := register.dma(ConvNum)(0)(2) ## register.dma(ConvNum)(1)(2)
 
 
         io.shapeSData <> shape.io.sData(0)
