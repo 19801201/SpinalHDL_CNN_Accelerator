@@ -64,8 +64,8 @@ class Padding(paddingConfig: PaddingConfig) extends Component {
         out
     }
 
-    io.rowNumOut := genRowColOut(leftRight, io.rowNumIn)
-    io.colNumOut := genRowColOut(upDown, io.colNumIn)
+    io.rowNumOut := genRowColOut(upDown, io.rowNumIn)
+    io.colNumOut := genRowColOut(leftRight, io.colNumIn)
 
 
     val last = Reg(Bool()) init (False)

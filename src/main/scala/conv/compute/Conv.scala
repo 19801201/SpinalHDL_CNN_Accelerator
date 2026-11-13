@@ -63,11 +63,12 @@ class Conv(convConfig: ConvConfig) extends Component {
     convCompute.io.channelOut := computeInstructionReg(CONV_STATE.CHANNEL_OUT).asUInt.resized
     convCompute.io.rowNumIn := computeInstructionReg(CONV_STATE.ROW_NUM_IN).asUInt.resized
     convCompute.io.colNumIn := computeInstructionReg(CONV_STATE.COL_NUM_IN).asUInt.resized
+    //顺序与PaddingEnum中的索引一致：left, right, up, down
     convCompute.io.enPadding := Vec(
-        computeInstructionReg(CONV_STATE.EN_PADDING_DOWN).asBool,
-        computeInstructionReg(CONV_STATE.EN_PADDING_UP).asBool,
+        computeInstructionReg(CONV_STATE.EN_PADDING_LEFT).asBool,
         computeInstructionReg(CONV_STATE.EN_PADDING_RIGHT).asBool,
-        computeInstructionReg(CONV_STATE.EN_PADDING_LEFT).asBool
+        computeInstructionReg(CONV_STATE.EN_PADDING_UP).asBool,
+        computeInstructionReg(CONV_STATE.EN_PADDING_DOWN).asBool
     )
     convCompute.io.enActivation := computeInstructionReg(CONV_STATE.EN_ACTIVATION).asBool
     convCompute.io.zeroDara := computeInstructionReg(CONV_STATE.Z1).resized
